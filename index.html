@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Presidential Coverage Tracker</title>
+<meta name="description" content="Tone of presidential coverage across major US broadcast networks and digital news outlets, 2025–present.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Mono&display=swap">
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+/* ---------- Reset / base ---------- */
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: #fff;
+  color: #1a1a1a;
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+a { color: #1a1a1a; text-decoration: underline; text-decoration-color: #ccc; text-underline-offset: 2px; }
+a:hover { text-decoration-color: #1a1a1a; }
+
+.wrap { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+
+/* ---------- Header ---------- */
+header { padding: 36px 0 24px; border-bottom: 1px solid #ececec; }
+header h1 {
+  font-family: 'IBM Plex Serif', serif;
+  font-weight: 500;
+  font-size: 2em;
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
+}
+header .subtitle { color: #666; margin: 0 0 8px; font-size: 15px; }
+header .meta { color: #999; margin: 0; font-size: 12px; font-family: 'IBM Plex Mono', monospace; }
+
+/* ---------- KPI strip ---------- */
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 28px 0;
+}
+.kpi-card {
+  background: #fafafa;
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  padding: 16px 18px;
+  min-height: 92px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+.kpi-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #888;
+  font-weight: 500;
+}
+.kpi-value {
+  font-family: 'IBM Plex Serif', serif;
+  font-size: 1.9em;
+  font-weight: 500;
+  color: #1a1a1a;
+  line-height: 1;
+  margin-top: 6px;
+}
+.kpi-value.small { font-size: 1.3em; }
+.kpi-delta {
+  font-size: 12px;
+  color: #888;
+  font-family: 'IBM Plex Mono', monospace;
+  margin-top: 6px;
+}
+.kpi-delta.up    { color: #2c8a3e; }
+.kpi-delta.down  { color: #c0392b; }
+.kpi-delta.flat  { color: #888; }
+.kpi-delta .arrow { margin-right: 3px; }
+
+/* ---------- Pill toggle + controls ---------- */
+.controls-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  align-items: flex-start;
+  margin: 8px 0 18px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ececec;
+}
+.pill-toggle {
+  display: inline-flex;
+  background: #f2f2f2;
+  border-radius: 999px;
+  padding: 3px;
+  border: 1px solid #e4e4e4;
+}
+.pill-toggle button {
+  border: none;
+  background: transparent;
+  color: #666;
+  padding: 7px 18px;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.pill-toggle button.active {
+  background: #1a1a1a;
+  color: #fff;
+}
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.control-group > label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #888;
+  font-weight: 500;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 6px; max-width: 640px; }
+.chip {
+  border: 1px solid #d6d6d6;
+  background: #fff;
+  color: #555;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.12s;
+  user-select: none;
+}
+.chip:hover { border-color: #1a1a1a; }
+.chip.active {
+  background: #1a1a1a;
+  border-color: #1a1a1a;
+  color: #fff;
+}
+.chip.all { font-weight: 500; }
+.date-range-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.preset-buttons { display: flex; gap: 4px; }
+.preset-buttons button {
+  border: 1px solid #d6d6d6;
+  background: #fff;
+  color: #555;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.preset-buttons button:hover { border-color: #1a1a1a; }
+.preset-buttons button.active {
+  background: #1a1a1a;
+  border-color: #1a1a1a;
+  color: #fff;
+}
+.custom-dates {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 12px;
+  color: #888;
+}
+.custom-dates input[type="date"] {
+  border: 1px solid #d6d6d6;
+  background: #fff;
+  color: #444;
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.custom-dates input[type="date"]:hover  { border-color: #1a1a1a; }
+.custom-dates input[type="date"]:focus  { outline: none; border-color: #1a1a1a; }
+.custom-dates .dash { color: #aaa; }
+
+/* ---------- Chart grid ---------- */
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.chart-card {
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  padding: 18px 20px 12px;
+  background: #fff;
+}
+.chart-card h3 {
+  font-family: 'IBM Plex Serif', serif;
+  font-size: 1em;
+  font-weight: 500;
+  margin: 0 0 2px;
+}
+.chart-note {
+  font-size: 12px;
+  color: #888;
+  margin: 0 0 10px;
+}
+.chart-box { width: 100%; height: 320px; }
+
+/* ---------- Topics placeholder ---------- */
+.topics-placeholder {
+  border: 1px dashed #d4d4d4;
+  border-radius: 8px;
+  padding: 22px 24px;
+  background: #fcfcfc;
+  margin-bottom: 32px;
+  position: relative;
+}
+.topics-placeholder h3 {
+  font-family: 'IBM Plex Serif', serif;
+  font-weight: 500;
+  font-size: 1.1em;
+  margin: 0 0 4px;
+  display: inline-block;
+}
+.topics-placeholder .badge {
+  display: inline-block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  background: #f0eee9;
+  color: #8a7a3d;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  font-weight: 500;
+}
+.topics-placeholder .desc {
+  color: #666;
+  font-size: 14px;
+  max-width: 700px;
+  margin: 0 0 14px;
+}
+.topic-chips-mock {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.topic-chips-mock .topic-chip {
+  background: #fff;
+  border: 1px solid #d6d6d6;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: #777;
+}
+.topic-chips-mock .topic-chip.on {
+  background: #1a1a1a;
+  border-color: #1a1a1a;
+  color: #fff;
+}
+.topics-mock-chart { width: 100%; height: 260px; opacity: 0.85; }
+
+/* ---------- Methodology ---------- */
+.methodology {
+  max-width: 780px;
+  margin: 24px 0 48px;
+  line-height: 1.75;
+  color: #333;
+  font-size: 15px;
+}
+.methodology h2 {
+  font-family: 'IBM Plex Serif', serif;
+  font-weight: 500;
+  font-size: 1.5em;
+  margin: 0 0 12px;
+  padding-top: 16px;
+  border-top: 1px solid #ececec;
+}
+.methodology h3 {
+  font-family: 'IBM Plex Serif', serif;
+  font-weight: 500;
+  font-size: 1.1em;
+  margin: 28px 0 8px;
+}
+.methodology p { margin: 0 0 14px; }
+.download-btn {
+  display: inline-block;
+  background: #1a1a1a;
+  color: #fff;
+  text-decoration: none;
+  padding: 9px 18px;
+  border-radius: 4px;
+  font-size: 13px;
+  margin: 8px 0;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+.download-btn:hover { background: #333; }
+
+footer {
+  border-top: 1px solid #ececec;
+  padding: 20px 0 36px;
+  color: #888;
+  font-size: 12px;
+}
+footer a { color: #888; }
+
+/* ---------- Loading state ---------- */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 320px;
+  color: #aaa;
+  font-size: 13px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+  .chart-grid { grid-template-columns: 1fr; }
+  .chart-box { height: 280px; }
+}
+@media (max-width: 540px) {
+  .wrap { padding: 0 16px; }
+  header { padding: 24px 0 18px; }
+  header h1 { font-size: 1.6em; }
+  .kpi-strip { gap: 8px; }
+  .kpi-card { padding: 12px 14px; min-height: 80px; }
+  .kpi-value { font-size: 1.5em; }
+  .controls-bar { gap: 12px 16px; }
+  .chart-card { padding: 14px 14px 10px; }
+  .chart-box { height: 240px; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header>
+  <h1>Presidential Coverage Tracker</h1>
+  <p class="subtitle">Tone of presidential coverage across major US broadcast networks and digital news outlets, 2025–present.</p>
+  <p class="meta" id="meta-line">Loading data…</p>
+</header>
+
+<!-- KPI STRIP -->
+<section class="kpi-strip" id="kpi-strip">
+  <div class="kpi-card">
+    <div class="kpi-label">Net score this week</div>
+    <div>
+      <div class="kpi-value" id="kpi-net">—</div>
+      <div class="kpi-delta" id="kpi-net-delta">&nbsp;</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">% Negative this week</div>
+    <div>
+      <div class="kpi-value" id="kpi-neg">—</div>
+      <div class="kpi-delta" id="kpi-neg-delta">&nbsp;</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Coverage volume</div>
+    <div>
+      <div class="kpi-value" id="kpi-vol">—</div>
+      <div class="kpi-delta" id="kpi-vol-delta">&nbsp;</div>
+    </div>
+  </div>
+  <div class="kpi-card">
+    <div class="kpi-label">Biggest mover</div>
+    <div>
+      <div class="kpi-value small" id="kpi-mover">—</div>
+      <div class="kpi-delta" id="kpi-mover-delta">&nbsp;</div>
+    </div>
+  </div>
+</section>
+
+<!-- CONTROLS -->
+<section class="controls-bar">
+  <div class="pill-toggle" id="mode-toggle">
+    <button data-mode="tv" class="active">Broadcast</button>
+    <button data-mode="news">Digital</button>
+  </div>
+  <div class="control-group">
+    <label id="group-label">Networks</label>
+    <div class="chips" id="group-chips"></div>
+  </div>
+  <div class="control-group">
+    <label>Date range</label>
+    <div class="date-range-row">
+      <div class="preset-buttons" id="preset-buttons">
+        <button data-preset="3m">3M</button>
+        <button data-preset="6m">6M</button>
+        <button data-preset="ytd">YTD</button>
+        <button data-preset="all" class="active">All</button>
+      </div>
+      <div class="custom-dates">
+        <input type="date" id="date-from" aria-label="Start date">
+        <span class="dash">–</span>
+        <input type="date" id="date-to"   aria-label="End date">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CHART GRID -->
+<section class="chart-grid">
+  <div class="chart-card">
+    <h3>Net Coverage Score</h3>
+    <p class="chart-note">% positive minus % negative each week. Faint lines are raw weekly values; bold lines are LOESS-smoothed (span = 0.5) with 95% CI.</p>
+    <div id="chart-net" class="chart-box"></div>
+  </div>
+  <div class="chart-card">
+    <h3>% Negative Coverage</h3>
+    <p class="chart-note">Share of segments/headlines classified as negative each week.</p>
+    <div id="chart-neg" class="chart-box"></div>
+  </div>
+  <div class="chart-card">
+    <h3>Coverage Volume</h3>
+    <p class="chart-note">Total segments or headlines mentioning the president each week.</p>
+    <div id="chart-vol" class="chart-box"></div>
+  </div>
+  <div class="chart-card">
+    <h3>Average Net Score</h3>
+    <p class="chart-note">Mean net score across the selected date range, by <span id="bar-axis-label">network</span>.</p>
+    <div id="chart-bar" class="chart-box"></div>
+  </div>
+</section>
+
+<!-- TOPICS PLACEHOLDER -->
+<section class="topics-placeholder">
+  <span class="badge">Coming soon</span>
+  <h3 style="margin-left: 10px; font-size: 1.15em;">Topic Coverage Trends</h3>
+  <p class="desc">Track how coverage of specific topics shifts over time. When the president speaks on an issue, see which outlets cover it, how much, and how the tone differs across networks. The chart below is a preview; topic detection will be added in a future update.</p>
+  <div class="topic-chips-mock">
+    <span class="topic-chip on">economy</span>
+    <span class="topic-chip on">immigration</span>
+    <span class="topic-chip on">foreign policy</span>
+    <span class="topic-chip">healthcare</span>
+    <span class="topic-chip">crime</span>
+    <span class="topic-chip">tariffs</span>
+    <span class="topic-chip">+ add topic</span>
+  </div>
+  <div id="topics-mock-chart" class="topics-mock-chart"></div>
+</section>
+
+<!-- METHODOLOGY -->
+<section class="methodology">
+  <h2>About this project</h2>
+  <p>The Presidential Coverage Tracker is a research project from Yale political scientists that measures the tone of presidential coverage across major US broadcast and cable news networks and digital news outlets. We collect closed-caption transcripts from the <a href="https://archive.org/details/tv" target="_blank" rel="noopener">Internet Archive's TV News Archive</a> and news headlines from <a href="https://search.mediacloud.org" target="_blank" rel="noopener">Media Cloud</a>, classify each segment and headline mentioning the president using a fine-tuned natural language inference model, and update this dashboard every few days.</p>
+
+  <p>Traditional methods of measuring media tone — dictionary-based word counts and document-level transformer sentiment classifiers — assign an overall positive, negative, or neutral score to a document rather than to the candidate it discusses. This document-level approach cannot identify to whom sentiment is directed. A headline like "Biden struggles to contain inflation" conveys a different signal about the president than "Inflation eases under Biden," yet both might be flagged as negative by a dictionary model that treats "inflation" as a negative term. We adapt methods from natural language inference (NLI) to measure candidate-specific media coverage. Rather than inferring tone from surface-level word usage, our approach uses stance detection to evaluate whether a headline or transcript segment implies that a given candidate is performing well or poorly.</p>
+
+  <h3>Data &amp; classification</h3>
+  <p>Each broadcast transcript is split into 3-sentence windows. Windows mentioning "Trump" are classified using the <a href="https://huggingface.co/mlburnham/Political_DEBATE_large_v1.0" target="_blank" rel="noopener">Political DEBATE model</a> developed by Michael Burnham. We further train the model on a task that evaluates whether the text conveys a positive, negative, or neutral performance cue about Trump. The same method applies to digital news coverage using the headline as the unit of analysis.</p>
+  <p>A segment is classified as positive if the model scores a "yes" on the hypothesis "the author of this text believes that Trump is performing/performed/will perform well" and negative if the model scores a "yes" on the parallel "poorly" hypothesis.</p>
+
+  <h3>Smoothing</h3>
+  <p>The bold lines in each over-time chart are LOESS smooths (span = 0.5) fit to the weekly aggregates. Shaded bands are 95% confidence intervals from the LOESS fit. Faint lines underneath show the underlying weekly raw values that the smoother is fit to.</p>
+
+  <h3>Code &amp; paper</h3>
+  <p>The classification model, training data, and analysis code for the net coverage score are open source. The code repository for the underlying paper is available at <a href="https://github.com/kevin-deluca-polisci/presidential_headlines" target="_blank" rel="noopener">github.com/kevin-deluca-polisci/presidential_headlines</a>. The code for this dashboard lives at <a href="https://github.com/kevinmdeluca/coverage-tracker" target="_blank" rel="noopener">github.com/kevinmdeluca/coverage-tracker</a>.</p>
+  <!-- TODO: when the paper is posted, replace href="#" below with the actual URL on kevinmdeluca.com -->
+  <p>Full paper: <a href="#" target="_blank" rel="noopener">forthcoming</a>.</p>
+
+  <h3>Networks covered</h3>
+  <p>CBS, CNN, Fox News, ABC, NBC, and MSNBC/MSNow. Data runs from January 2025 to the present. We include national broadcast and cable news programs only — no local affiliates or regional newscasts.</p>
+
+  <h3>Digital news outlets covered</h3>
+  <p>Reuters, Fox News, CBS News, Bloomberg, CNN, ABC News, USA Today, New York Times, NBC News, Los Angeles Times, and NPR. Headlines are collected via the <a href="https://search.mediacloud.org" target="_blank" rel="noopener">Media Cloud API</a>.</p>
+
+  <h3>Data access</h3>
+  <p>The weekly aggregated CSVs that power this page are released under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</p>
+  <button class="download-btn" id="download-btn">Download weekly summary CSV</button>
+
+  <h3>Contact</h3>
+  <p>Kevin DeLuca · <a href="mailto:kevin.deluca@yale.edu">kevin.deluca@yale.edu</a><br>
+  Zoe Kava · <a href="mailto:zoe.kava@yale.edu">zoe.kava@yale.edu</a></p>
+</section>
+
+<footer>
+  <span id="footer-meta">Presidential Coverage Tracker · Yale University</span>
+</footer>
+
+</div>
+
+<script>
+// =====================================================================
+// COLOR MAPS — kept consistent with the original Shiny app
+// =====================================================================
+const NETWORK_COLORS = {
+  "CBS":         "#1a6bb5",
+  "CNN":         "#cc0001",
+  "Fox":         "#003366",
+  "ABC":         "#00843d",
+  "NBC":         "#9b59b6",
+  "MSNBC/MSNow": "#e5a823",
+  "All Networks":"#1a1a1a"
+};
+const OUTLET_COLORS = {
+  "Reuters":          "#2980b9",
+  "Fox News":         "#003366",
+  "CBS News":         "#1a6bb5",
+  "Bloomberg":        "#555555",
+  "CNN":              "#cc0001",
+  "ABC News":         "#00843d",
+  "USA Today":        "#1565c0",
+  "New York Times":   "#111111",
+  "NBC News":         "#9b59b6",
+  "Los Angeles Times":"#c0392b",
+  "NPR":              "#e5a823",
+  "All Outlets":      "#1a1a1a"
+};
+
+const TV_ORDER   = ["CBS","CNN","Fox","ABC","NBC","MSNBC/MSNow"];
+const NEWS_ORDER = ["Reuters","Fox News","CBS News","Bloomberg","CNN","ABC News",
+                    "USA Today","New York Times","NBC News","Los Angeles Times","NPR"];
+
+// =====================================================================
+// STATE
+// =====================================================================
+const state = {
+  mode: "tv",                    // "tv" | "news"
+  data: { tv: null, tv_agg: null, news: null, news_agg: null },
+  selectedGroups: [],            // names selected in chips ([]=All)
+  dateRange: null,               // [Date, Date]
+  preset: "all",
+};
+
+// =====================================================================
+// HELPERS
+// =====================================================================
+const fmtDate    = d => d.toISOString().slice(0,10);
+const fmtPretty  = d => d.toLocaleDateString("en-US", { month:"long", day:"numeric", year:"numeric" });
+const fmtNum     = n => Math.round(n).toLocaleString("en-US");
+const fmtPct     = (n, d=1) => (n>=0?"+":"") + n.toFixed(d) + "%";
+const fmtPctAbs  = (n, d=1) => n.toFixed(d) + "%";
+const parseDate  = s => new Date(s + "T00:00:00Z");
+const hexToRgba  = (hex, a) => {
+  const h = hex.replace("#","");
+  const r = parseInt(h.slice(0,2),16), g = parseInt(h.slice(2,4),16), b = parseInt(h.slice(4,6),16);
+  return `rgba(${r},${g},${b},${a})`;
+};
+
+function loadCsv(path) {
+  return new Promise((resolve, reject) => {
+    Papa.parse(path, {
+      download: true,
+      header: true,
+      dynamicTyping: true,
+      skipEmptyLines: true,
+      complete: r => resolve(r.data),
+      error: reject
+    });
+  });
+}
+
+// =====================================================================
+// DATA LOADING
+// =====================================================================
+async function loadAll() {
+  const [tv, tv_agg, news, news_agg] = await Promise.all([
+    loadCsv("data/weekly_tv.csv"),
+    loadCsv("data/weekly_tv_agg.csv"),
+    loadCsv("data/weekly_news.csv"),
+    loadCsv("data/weekly_news_agg.csv"),
+  ]);
+  // Convert weeks to Date objects
+  const dateify = rows => rows.map(r => ({...r, week: parseDate(r.week)}));
+  state.data.tv       = dateify(tv);
+  state.data.tv_agg   = dateify(tv_agg);
+  state.data.news     = dateify(news);
+  state.data.news_agg = dateify(news_agg);
+}
+
+// =====================================================================
+// CURRENT-MODE ACCESSORS
+// =====================================================================
+const currentPerGroup = () => state.mode === "tv" ? state.data.tv : state.data.news;
+const currentAgg      = () => state.mode === "tv" ? state.data.tv_agg : state.data.news_agg;
+const currentColors   = () => state.mode === "tv" ? NETWORK_COLORS : OUTLET_COLORS;
+const currentOrder    = () => state.mode === "tv" ? TV_ORDER : NEWS_ORDER;
+const groupCol        = () => state.mode === "tv" ? "network" : "outlet";
+const groupLabel      = () => state.mode === "tv" ? "Network" : "Outlet";
+const aggName         = () => state.mode === "tv" ? "All Networks" : "All Outlets";
+
+function filterDate(rows) {
+  if (!state.dateRange) return rows;
+  const [lo, hi] = state.dateRange;
+  return rows.filter(r => r.week >= lo && r.week <= hi);
+}
+
+function selectedRows() {
+  // Returns array of [name, rows]. Empty selectedGroups means "aggregate only".
+  const per = currentPerGroup();
+  const agg = currentAgg();
+  if (state.selectedGroups.length === 0) {
+    return [[aggName(), filterDate(agg)]];
+  }
+  return state.selectedGroups.map(g => {
+    const rows = filterDate(per.filter(r => r[groupCol()] === g));
+    return [g, rows];
+  });
+}
+
+// =====================================================================
+// KPI COMPUTATION
+// =====================================================================
+function computeKpis() {
+  const agg = currentAgg();
+  if (!agg || agg.length < 2) return null;
+  const last = agg[agg.length - 1];
+  const prev = agg[agg.length - 2];
+
+  // Biggest mover: largest abs change in net_score between last and prev week,
+  // restricted to per-group rows
+  const per = currentPerGroup();
+  const lastWeek = last.week.getTime();
+  const prevWeek = prev.week.getTime();
+  const lastByGroup = new Map();
+  const prevByGroup = new Map();
+  per.forEach(r => {
+    if (r.week.getTime() === lastWeek) lastByGroup.set(r[groupCol()], r.net_score);
+    if (r.week.getTime() === prevWeek) prevByGroup.set(r[groupCol()], r.net_score);
+  });
+  let mover = null, moverDelta = 0;
+  for (const [g, n] of lastByGroup) {
+    const p = prevByGroup.get(g);
+    if (p == null) continue;
+    const d = n - p;
+    if (Math.abs(d) > Math.abs(moverDelta)) { mover = g; moverDelta = d; }
+  }
+
+  return {
+    netNow:   last.net_score,
+    netDelta: last.net_score - prev.net_score,
+    negNow:   last.pct_negative,
+    negDelta: last.pct_negative - prev.pct_negative,
+    volNow:   last.total_segments,
+    volDelta: prev.total_segments === 0 ? 0
+              : (last.total_segments - prev.total_segments) / prev.total_segments * 100,
+    mover, moverDelta,
+    lastWeek: last.week,
+    units:    state.mode === "tv" ? "segments" : "headlines",
+  };
+}
+
+function renderKpis() {
+  const k = computeKpis();
+  const setDelta = (el, val, suffix, isVolume=false) => {
+    if (k == null) { el.textContent = " "; el.className = "kpi-delta flat"; return; }
+    const arrow = val > 0 ? "▲" : (val < 0 ? "▼" : "→");
+    const cls   = val > 0 ? "up" : (val < 0 ? "down" : "flat");
+    // For negativity-flavored KPIs (net score / mover), going up = better;
+    // for % negative, going up = worse. Flip class for % negative.
+    el.className = `kpi-delta ${cls}`;
+    el.innerHTML = `<span class="arrow">${arrow}</span>${val>=0?"+":""}${val.toFixed(1)}${suffix}`;
+  };
+
+  document.getElementById("kpi-net").textContent = k ? fmtPctAbs(k.netNow, 1) : "—";
+  setDelta(document.getElementById("kpi-net-delta"), k?.netDelta ?? 0, "pp WoW");
+
+  document.getElementById("kpi-neg").textContent = k ? fmtPctAbs(k.negNow, 1) : "—";
+  // % negative: up is bad
+  {
+    const el = document.getElementById("kpi-neg-delta");
+    const v = k?.negDelta ?? 0;
+    const arrow = v > 0 ? "▲" : (v < 0 ? "▼" : "→");
+    const cls   = v > 0 ? "down" : (v < 0 ? "up" : "flat");
+    el.className = `kpi-delta ${cls}`;
+    el.innerHTML = `<span class="arrow">${arrow}</span>${v>=0?"+":""}${v.toFixed(1)}pp WoW`;
+  }
+
+  document.getElementById("kpi-vol").textContent = k ? fmtNum(k.volNow) + " " + k.units : "—";
+  setDelta(document.getElementById("kpi-vol-delta"), k?.volDelta ?? 0, "% WoW", true);
+
+  document.getElementById("kpi-mover").textContent = k && k.mover ? k.mover : "—";
+  {
+    const el = document.getElementById("kpi-mover-delta");
+    if (!k || !k.mover) { el.textContent = " "; el.className="kpi-delta flat"; }
+    else {
+      const v = k.moverDelta;
+      const arrow = v > 0 ? "▲" : (v < 0 ? "▼" : "→");
+      const cls   = v > 0 ? "up" : (v < 0 ? "down" : "flat");
+      el.className = `kpi-delta ${cls}`;
+      el.innerHTML = `<span class="arrow">${arrow}</span>${v>=0?"+":""}${v.toFixed(1)}pp WoW`;
+    }
+  }
+
+  // Meta line in header
+  const meta = document.getElementById("meta-line");
+  if (k) {
+    const totalTv   = state.data.tv.reduce((s,r)=>s+(r.total_segments||0),0);
+    const totalNews = state.data.news.reduce((s,r)=>s+(r.total_segments||0),0);
+    meta.textContent = `Data through ${fmtPretty(k.lastWeek)} · ${fmtNum(totalTv)} TV segments · ${fmtNum(totalNews)} headlines`;
+  }
+}
+
+// =====================================================================
+// PLOTLY LAYOUTS
+// =====================================================================
+function baseLayout(yLabel, opts={}) {
+  return {
+    margin: { l: 50, r: 16, t: 8, b: 36 },
+    paper_bgcolor: "#fff",
+    plot_bgcolor:  "#fff",
+    font: { family: "IBM Plex Sans, system-ui, sans-serif", color: "#444", size: 12 },
+    xaxis: {
+      gridcolor: "#f1f1f1", linecolor: "#ddd", tickfont: { size: 11 },
+      tickformat: "%b %Y", showspikes: false
+    },
+    yaxis: {
+      title: { text: yLabel, font: { size: 11, color: "#888" } },
+      gridcolor: "#f1f1f1", linecolor: "#ddd", tickfont: { size: 11 },
+      ticksuffix: opts.pct ? "%" : "",
+      zeroline:   opts.zero !== false,
+      zerolinecolor: "#bbb",
+      zerolinewidth: 1
+    },
+    hovermode: "x unified",
+    showlegend: opts.showlegend !== false,
+    legend: { orientation: "h", y: -0.16, x: 0.5, xanchor: "center",
+              font: { size: 11 }, bgcolor: "rgba(0,0,0,0)" }
+  };
+}
+
+const PLOTLY_CONFIG = { responsive: true, displayModeBar: false };
+
+// =====================================================================
+// CHART RENDERING — over-time lines (net & % negative)
+// =====================================================================
+function renderTimeChart(divId, valueCol, smoothCol, loCol, hiCol, yLabel) {
+  const pairs   = selectedRows();
+  const colors  = currentColors();
+  const traces  = [];
+  pairs.forEach(([name, rows]) => {
+    if (!rows || rows.length === 0) return;
+    const color = colors[name] || "#888";
+    const xs = rows.map(r => r.week);
+    // CI ribbon
+    traces.push({
+      x: [...xs, ...xs.slice().reverse()],
+      y: [...rows.map(r => r[hiCol]), ...rows.slice().reverse().map(r => r[loCol])],
+      type: "scatter", mode: "lines",
+      fill: "toself", fillcolor: hexToRgba(color, 0.12),
+      line: { width: 0 },
+      hoverinfo: "skip", showlegend: false, name: name+" CI"
+    });
+    // Raw weekly (faded thin line)
+    traces.push({
+      x: xs, y: rows.map(r => r[valueCol]),
+      type: "scatter", mode: "lines",
+      line: { color: hexToRgba(color, 0.35), width: 1, shape: "linear" },
+      hoverinfo: "skip", showlegend: false, name: name+" raw"
+    });
+    // Smoothed bold line
+    traces.push({
+      x: xs, y: rows.map(r => r[smoothCol]),
+      type: "scatter", mode: "lines",
+      line: { color: color, width: 2.5 },
+      name: name,
+      hovertemplate: `<b>${name}</b>: %{y:.1f}%<extra></extra>`
+    });
+  });
+  Plotly.react(divId, traces,
+    baseLayout(yLabel, { pct: true, zero: valueCol === "net_score" || smoothCol === "smooth_net" }),
+    PLOTLY_CONFIG);
+}
+
+// =====================================================================
+// CHART RENDERING — volume
+// =====================================================================
+function renderVolume() {
+  const pairs  = selectedRows();
+  const colors = currentColors();
+  const traces = [];
+  pairs.forEach(([name, rows]) => {
+    if (!rows || rows.length === 0) return;
+    const color = colors[name] || "#888";
+    traces.push({
+      x: rows.map(r => r.week),
+      y: rows.map(r => r.total_segments),
+      type: "scatter", mode: "lines",
+      line: { color: color, width: 2.5 },
+      name: name,
+      hovertemplate: `<b>${name}</b>: %{y:,}<extra></extra>`
+    });
+  });
+  const yLabel = state.mode === "tv" ? "# segments" : "# headlines";
+  Plotly.react("chart-vol", traces, baseLayout(yLabel, { pct: false, zero: false }), PLOTLY_CONFIG);
+}
+
+// =====================================================================
+// CHART RENDERING — average net score bar (over selected date range)
+// =====================================================================
+function renderBar() {
+  const per    = filterDate(currentPerGroup());
+  const colors = currentColors();
+  // Average net score per group across the filtered range
+  const byGroup = new Map();
+  per.forEach(r => {
+    const g = r[groupCol()];
+    if (!byGroup.has(g)) byGroup.set(g, []);
+    byGroup.get(g).push(r.net_score);
+  });
+  const entries = [...byGroup.entries()]
+    .map(([g, arr]) => [g, arr.reduce((a,b)=>a+b,0) / arr.length])
+    .filter(([,v]) => isFinite(v))
+    .sort((a, b) => b[1] - a[1]);
+  const trace = {
+    x: entries.map(e => e[0]),
+    y: entries.map(e => e[1]),
+    type: "bar",
+    marker: { color: entries.map(e => colors[e[0]] || "#888") },
+    hovertemplate: "%{x}: %{y:.1f}%<extra></extra>",
+    showlegend: false
+  };
+  const lay = baseLayout("Avg net score", { pct: true, zero: true, showlegend: false });
+  lay.margin.b = 60;
+  lay.xaxis.tickangle = -25;
+  lay.xaxis.tickfont = { size: 10 };
+  Plotly.react("chart-bar", [trace], lay, PLOTLY_CONFIG);
+
+  document.getElementById("bar-axis-label").textContent =
+    state.mode === "tv" ? "network" : "outlet";
+}
+
+// =====================================================================
+// CHIPS — group selection
+// =====================================================================
+function renderChips() {
+  const container = document.getElementById("group-chips");
+  document.getElementById("group-label").textContent = groupLabel() + "s";
+  const order = currentOrder();
+  const colors = currentColors();
+  container.innerHTML = "";
+  // "All" chip
+  const all = document.createElement("span");
+  all.className = "chip all" + (state.selectedGroups.length === 0 ? " active" : "");
+  all.textContent = aggName();
+  all.onclick = () => { state.selectedGroups = []; renderChips(); renderAllCharts(); };
+  container.appendChild(all);
+  // Individual chips
+  order.forEach(name => {
+    const chip = document.createElement("span");
+    chip.className = "chip" + (state.selectedGroups.includes(name) ? " active" : "");
+    chip.textContent = name;
+    if (state.selectedGroups.includes(name)) {
+      chip.style.background = colors[name];
+      chip.style.borderColor = colors[name];
+    }
+    chip.onclick = () => {
+      const i = state.selectedGroups.indexOf(name);
+      if (i >= 0) state.selectedGroups.splice(i, 1);
+      else state.selectedGroups.push(name);
+      renderChips(); renderAllCharts();
+    };
+    container.appendChild(chip);
+  });
+}
+
+// =====================================================================
+// DATE PRESETS
+// =====================================================================
+function applyPreset(preset) {
+  state.preset = preset;
+  const agg = currentAgg();
+  if (!agg || agg.length === 0) return;
+  const maxDate = agg[agg.length - 1].week;
+  const minDate = agg[0].week;
+  let lo;
+  if (preset === "3m")  { lo = new Date(maxDate); lo.setUTCMonth(lo.getUTCMonth() - 3); }
+  if (preset === "6m")  { lo = new Date(maxDate); lo.setUTCMonth(lo.getUTCMonth() - 6); }
+  if (preset === "ytd") { lo = new Date(Date.UTC(maxDate.getUTCFullYear(), 0, 1)); }
+  if (preset === "all") { lo = minDate; }
+  if (!lo) lo = minDate;
+  state.dateRange = [lo < minDate ? minDate : lo, maxDate];
+  document.querySelectorAll("#preset-buttons button").forEach(b =>
+    b.classList.toggle("active", b.dataset.preset === preset));
+  syncDateInputs();
+}
+
+// Mirror state.dateRange into the custom date inputs (and set min/max bounds)
+function syncDateInputs() {
+  const agg = currentAgg();
+  if (!agg || agg.length === 0) return;
+  const fromEl = document.getElementById("date-from");
+  const toEl   = document.getElementById("date-to");
+  const min = fmtDate(agg[0].week);
+  const max = fmtDate(agg[agg.length - 1].week);
+  fromEl.min = min; fromEl.max = max;
+  toEl.min   = min; toEl.max   = max;
+  if (state.dateRange) {
+    fromEl.value = fmtDate(state.dateRange[0]);
+    toEl.value   = fmtDate(state.dateRange[1]);
+  }
+}
+
+// When the user changes a date input directly, deactivate presets and update state
+function onCustomDateChange() {
+  const fromEl = document.getElementById("date-from");
+  const toEl   = document.getElementById("date-to");
+  if (!fromEl.value || !toEl.value) return;
+  let lo = parseDate(fromEl.value);
+  let hi = parseDate(toEl.value);
+  if (lo > hi) { const t = lo; lo = hi; hi = t; }  // swap if reversed
+  state.dateRange = [lo, hi];
+  state.preset = "custom";
+  document.querySelectorAll("#preset-buttons button").forEach(b =>
+    b.classList.remove("active"));
+  renderAllCharts();
+}
+
+// =====================================================================
+// MASTER RENDER
+// =====================================================================
+function renderAllCharts() {
+  renderKpis();
+  renderTimeChart("chart-net", "net_score",   "smooth_net", "smooth_net_lo", "smooth_net_hi", "Net score");
+  renderTimeChart("chart-neg", "pct_negative","smooth_neg", "smooth_neg_lo", "smooth_neg_hi", "% negative");
+  renderVolume();
+  renderBar();
+}
+
+// =====================================================================
+// TOPICS PREVIEW (synthetic stacked area)
+// =====================================================================
+function renderTopicsMock() {
+  const weeks = [];
+  const start = new Date(Date.UTC(2025, 0, 6));
+  for (let i = 0; i < 72; i++) {
+    weeks.push(new Date(start.getTime() + i * 7 * 86400000));
+  }
+  const topics = [
+    { name: "economy",        color: "#1a6bb5", base: 28, amp: 7,  phase: 0.2 },
+    { name: "immigration",    color: "#cc0001", base: 22, amp: 9,  phase: 1.3 },
+    { name: "foreign policy", color: "#00843d", base: 18, amp: 6,  phase: 2.4 },
+  ];
+  const traces = topics.map(t => ({
+    x: weeks,
+    y: weeks.map((_, i) => Math.max(0, t.base + t.amp * Math.sin(i / 7 + t.phase) +
+                                        (Math.sin(i / 3 + t.phase) * 2))),
+    name: t.name,
+    type: "scatter", mode: "lines",
+    stackgroup: "one", groupnorm: "",
+    line: { color: t.color, width: 0 },
+    fillcolor: hexToRgba(t.color, 0.55),
+    hovertemplate: `<b>${t.name}</b>: %{y:.0f}%<extra></extra>`
+  }));
+  const lay = baseLayout("share of coverage", { pct: false, zero: false });
+  lay.margin = { l: 50, r: 16, t: 4, b: 36 };
+  lay.legend = { orientation: "h", y: -0.18, x: 0.5, xanchor: "center", font: { size: 11 } };
+  Plotly.newPlot("topics-mock-chart", traces, lay, PLOTLY_CONFIG);
+}
+
+// =====================================================================
+// EVENTS
+// =====================================================================
+document.getElementById("mode-toggle").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-mode]");
+  if (!btn) return;
+  state.mode = btn.dataset.mode;
+  document.querySelectorAll("#mode-toggle button").forEach(b =>
+    b.classList.toggle("active", b === btn));
+  state.selectedGroups = [];  // reset on mode switch
+  renderChips();
+  applyPreset(state.preset);
+  renderAllCharts();
+});
+
+document.getElementById("preset-buttons").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-preset]");
+  if (!btn) return;
+  applyPreset(btn.dataset.preset);
+  renderAllCharts();
+});
+
+document.getElementById("date-from").addEventListener("change", onCustomDateChange);
+document.getElementById("date-to").addEventListener("change", onCustomDateChange);
+
+document.getElementById("download-btn").addEventListener("click", () => {
+  const rows = state.mode === "tv" ? state.data.tv : state.data.news;
+  const csv  = Papa.unparse(rows.map(r => ({...r, week: fmtDate(r.week)})));
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url;
+  a.download = `coverage_${state.mode}_weekly_${fmtDate(new Date())}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+});
+
+// =====================================================================
+// IFRAME HEIGHT AUTO-SYNC
+// When embedded in kevinmdeluca.com (or any parent), post our content
+// height up so the parent iframe can resize itself.
+// =====================================================================
+function postHeight() {
+  if (window.parent !== window) {
+    window.parent.postMessage(
+      { type: "coverage-tracker-resize", height: document.body.scrollHeight },
+      "*"
+    );
+  }
+}
+
+// =====================================================================
+// INIT
+// =====================================================================
+(async function() {
+  try {
+    await loadAll();
+    applyPreset("all");
+    renderChips();
+    renderAllCharts();
+    renderTopicsMock();
+    // Tell any embedding parent our height (now and on resize/changes)
+    postHeight();
+    window.addEventListener("resize", postHeight);
+    if (window.ResizeObserver) new ResizeObserver(postHeight).observe(document.body);
+  } catch (err) {
+    console.error(err);
+    document.getElementById("meta-line").textContent =
+      "Couldn't load data. Check that data/ files are present.";
+  }
+})();
+</script>
+
+</body>
+</html>

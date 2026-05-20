@@ -1,0 +1,33 @@
+# macOS / editor cruft
+.DS_Store
+.Rhistory
+.Rapp.history
+.Rproj.user/
+*.Rproj
+.idea/
+.vscode/
+
+# Raw data — kept local/on cluster, never committed
+*.csv.gz
+trump_performance_chunks.csv
+trump_headlines_analyzed.csv
+trump_headlines_master.csv
+all_networks_master.csv
+data/raw/
+
+# Secrets
+.env
+.env.local
+*.pem
+*.key
+
+# Logs and job outputs
+logs/
+*.log
+*.err
+*.out
+slurm-*.out
+
+# R session
+.Rdata
+.Ruserdata
