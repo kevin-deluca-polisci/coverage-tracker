@@ -1,0 +1,91 @@
+# Topic detection config.
+#
+# Each topic has a `name` (shown in the dashboard) and a `keywords` list. A
+# headline or transcript chunk counts for a topic if it contains any of the
+# keywords as a whole word (case-insensitive). Multi-word phrases are matched
+# as a single unit ("trade war" must appear together).
+#
+# To add a topic: append a new entry below, rerun build_topics.R, commit
+# data/topics_weekly.csv. The dashboard picks up new topics automatically.
+#
+# Keep this list reasonably curated. Adding very common words (e.g. "tax",
+# "money") will produce a lot of false positives. Prefer specific phrases.
+
+topics:
+  - name: economy
+    keywords:
+      - economy
+      - economic
+      - gdp
+      - inflation
+      - jobs report
+      - unemployment
+      - recession
+      - federal reserve
+      - interest rates
+      - stock market
+      - wall street
+
+  - name: immigration
+    keywords:
+      - immigration
+      - immigrant
+      - border
+      - migrant
+      - asylum
+      - deportation
+      - sanctuary city
+      - dreamer
+      - daca
+      - mass deportation
+      - ice raid
+
+  - name: foreign policy
+    keywords:
+      - foreign policy
+      - ukraine
+      - russia
+      - putin
+      - china
+      - xi jinping
+      - taiwan
+      - nato
+      - israel
+      - gaza
+      - hamas
+      - iran
+      - zelensky
+      - north korea
+
+  - name: tariffs
+    keywords:
+      - tariff
+      - tariffs
+      - trade war
+      - trade deal
+      - sanctions
+      - import tax
+
+  - name: healthcare
+    keywords:
+      - healthcare
+      - medicare
+      - medicaid
+      - obamacare
+      - affordable care act
+      - drug prices
+      - abortion
+      - planned parenthood
+      - reproductive rights
+
+  - name: crime
+    keywords:
+      - crime
+      - criminal
+      - fbi
+      - doj
+      - department of justice
+      - law enforcement
+      - prosecution
+      - indictment
+      - sentencing

@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  launchd job for running update_local.sh on a schedule.
+
+  Install:
+    cp this-file ~/Library/LaunchAgents/
+    launchctl load ~/Library/LaunchAgents/com.kevinmdeluca.coverage-tracker.plist
+
+  Adjust the path below if your repo lives somewhere other than the default
+  Dropbox path. Adjust StartCalendarInterval to change the cadence.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.kevinmdeluca.coverage-tracker</string>
+
+    <!-- The script to run. ProgramArguments is a list, not a string -
+         each element is a separate argv item. -->
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-l</string>
+        <string>-c</string>
+        <string>cd "$HOME/Library/CloudStorage/Dropbox/Claude/website/coverage-tracker" &amp;&amp; ./scripts/update_local.sh &gt;&gt; "$HOME/Library/Logs/coverage-tracker.log" 2&gt;&amp;1</string>
+    </array>
+
+    <!-- Run every 3 days at 09:00. launchd will run on next wake if the
+         Mac was asleep at that time. -->
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Day</key>
+            <integer>1</integer>
+            <key>Hour</key>
+            <integer>9</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Day</key>
+            <integer>4</integer>
+            <key>Hour</key>
+            <integer>9</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Day</key>
+            <integer>7</integer>
+            <key>Hour</key>
+            <integer>9</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Day</key>
+            <integer>10</integer>
+            <key>Hour</key>
+            <integer>9</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Day</key>
+            <integer>13</integer>
+            <key>Hour</key>
+            <integer>9</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Day</key>
+            <integer>16</integer>
+            <key>Hour</key>
+            <integer>9</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Day</key>
+            <integer>19</integer>
+            <key>Hour</key>
+            <integer>9</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Day</key>
+            <integer>22</integer>
+            <key>Hour</key>
+            <integer>9</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Day</key>
+            <integer>25</integer>
+            <key>Hour</key>
+            <integer>9</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+        <dict>
+            <key>Day</key>
+            <integer>28</integer>
+            <key>Hour</key>
+            <integer>9</integer>
+            <key>Minute</key>
+            <integer>0</integer>
+        </dict>
+    </array>
+
+    <!-- Don't run more than one concurrent instance -->
+    <key>AbandonProcessGroup</key>
+    <false/>
+
+    <!-- Run when Mac wakes if the scheduled time was missed -->
+    <key>RunAtLoad</key>
+    <false/>
+</dict>
+</plist>

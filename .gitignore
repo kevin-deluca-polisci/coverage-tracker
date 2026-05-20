@@ -15,6 +15,12 @@ trump_headlines_master.csv
 all_networks_master.csv
 data/raw/
 
+# Python local pipeline
+.venv/
+__pycache__/
+*.pyc
+scraper_state.json
+
 # Secrets
 .env
 .env.local

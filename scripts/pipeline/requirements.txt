@@ -1,0 +1,28 @@
+# Python dependencies for the local coverage-tracker pipeline.
+# Install with:
+#   pip install -r scripts/pipeline/requirements.txt
+#
+# On Apple Silicon, install torch with MPS support (default in recent versions).
+# On Intel Mac / Linux without GPU, the same packages work; classification
+# falls back to CPU.
+
+# --- scraping ---
+requests>=2.31
+beautifulsoup4>=4.12
+lxml>=4.9
+internetarchive>=3.5            # used by Internet Archive scraping
+mediacloud>=4.0                 # Media Cloud API v4 client
+
+# --- data ---
+pandas>=2.0
+numpy>=1.24
+openpyxl>=3.1                   # XLSX writer used by scrape_all_networks
+
+# --- ML / classification ---
+torch>=2.1                      # MPS support stable from 2.1+
+transformers>=4.36
+accelerate>=0.25                # used by some HF pipeline backends
+
+# --- misc ---
+tqdm>=4.66
+pyyaml>=6.0

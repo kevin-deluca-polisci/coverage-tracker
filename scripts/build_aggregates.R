@@ -28,29 +28,55 @@
 suppressPackageStartupMessages({
   library(dplyr)
   library(lubridate)
-  library(optparse)
 })
 
 # ---- CLI ---------------------------------------------------------------
+# Minimal base-R argument parser. Supports --key value and --key=value.
+# Avoids any external dependency (no optparse/getopt) so this runs cleanly
+# on cluster R installs without package gymnastics.
 
-option_list <- list(
-  make_option("--chunks",    type = "character", default = NULL,
-              help = "Path to trump_performance_chunks.csv (raw TV segments)"),
-  make_option("--headlines", type = "character", default = NULL,
-              help = "Path to trump_headlines_analyzed.csv (raw headlines)"),
-  make_option("--out-dir",   type = "character", default = "data",
-              help = "Output directory [default: %default]"),
-  make_option("--span",      type = "double",    default = 0.5,
-              help = "LOESS smoothing span [default: %default]")
-)
-opt <- parse_args(OptionParser(option_list = option_list))
+parse_args_simple <- function(args, defaults = list()) {
+  out <- defaults
+  i <- 1
+  while (i <= length(args)) {
+    a <- args[i]
+    if (startsWith(a, "--")) {
+      eq <- regexpr("=", a, fixed = TRUE)
+      if (eq > 0) {
+        key <- substr(a, 3, eq - 1)
+        val <- substr(a, eq + 1, nchar(a))
+        out[[key]] <- val
+        i <- i + 1
+      } else {
+        key <- substr(a, 3, nchar(a))
+        if (i + 1 <= length(args) && !startsWith(args[i + 1], "--")) {
+          out[[key]] <- args[i + 1]
+          i <- i + 2
+        } else {
+          out[[key]] <- TRUE
+          i <- i + 1
+        }
+      }
+    } else {
+      i <- i + 1
+    }
+  }
+  out
+}
+
+opt <- parse_args_simple(commandArgs(trailingOnly = TRUE), defaults = list(
+  chunks    = NULL,
+  headlines = NULL,
+  `out-dir` = "data",
+  span      = "0.5"
+))
 
 if (is.null(opt$chunks) || is.null(opt$headlines)) {
-  stop("Both --chunks and --headlines paths are required.")
+  stop("Usage: Rscript build_aggregates.R --chunks PATH --headlines PATH [--out-dir DIR] [--span N]")
 }
 if (!dir.exists(opt[["out-dir"]])) dir.create(opt[["out-dir"]], recursive = TRUE)
 
-LOESS_SPAN <- opt$span
+LOESS_SPAN <- as.numeric(opt$span)
 Z95 <- qnorm(0.975)  # 1.96 for 95% CI
 
 # ---- Network / outlet maps --------------------------------------------

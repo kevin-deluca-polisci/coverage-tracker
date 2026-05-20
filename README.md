@@ -2,7 +2,7 @@
 
 A research project from Yale political scientists measuring the tone of presidential coverage across major US broadcast networks and digital news outlets, 2025–present.
 
-**Live site:** https://kevinmdeluca.github.io/coverage-tracker/ *(once deployed)*
+**Live site:** https://kevin-deluca-polisci.github.io/coverage-tracker/ *(once deployed)*
 
 ## What this is
 

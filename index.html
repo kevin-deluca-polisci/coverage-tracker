@@ -217,64 +217,27 @@ header .meta { color: #999; margin: 0; font-size: 12px; font-family: 'IBM Plex M
 }
 .chart-box { width: 100%; height: 320px; }
 
-/* ---------- Topics placeholder ---------- */
-.topics-placeholder {
-  border: 1px dashed #d4d4d4;
-  border-radius: 8px;
-  padding: 22px 24px;
-  background: #fcfcfc;
-  margin-bottom: 32px;
-  position: relative;
-}
-.topics-placeholder h3 {
-  font-family: 'IBM Plex Serif', serif;
-  font-weight: 500;
-  font-size: 1.1em;
-  margin: 0 0 4px;
-  display: inline-block;
-}
-.topics-placeholder .badge {
-  display: inline-block;
-  font-size: 10px;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  background: #f0eee9;
-  color: #8a7a3d;
-  padding: 3px 8px;
-  border-radius: 4px;
-  margin-bottom: 10px;
-  font-weight: 500;
-}
-.topics-placeholder .desc {
-  color: #666;
-  font-size: 14px;
-  max-width: 700px;
-  margin: 0 0 14px;
-}
-.topic-chips-mock {
+/* ---------- Topics section ---------- */
+.topics-section { margin-bottom: 28px; }
+.chart-card-full { grid-column: 1 / -1; }
+.chart-box-tall  { height: 380px; }
+.topic-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 14px;
+  margin: 4px 0 12px;
 }
-.topic-chips-mock .topic-chip {
-  background: #fff;
-  border: 1px solid #d6d6d6;
-  border-radius: 999px;
-  padding: 4px 12px;
+.chart-note code {
+  font-family: 'IBM Plex Mono', monospace;
   font-size: 12px;
-  color: #777;
+  background: #f4f4f4;
+  padding: 1px 5px;
+  border-radius: 3px;
+  color: #444;
 }
-.topic-chips-mock .topic-chip.on {
-  background: #1a1a1a;
-  border-color: #1a1a1a;
-  color: #fff;
-}
-.topics-mock-chart { width: 100%; height: 260px; opacity: 0.85; }
 
 /* ---------- Methodology ---------- */
 .methodology {
-  max-width: 780px;
   margin: 24px 0 48px;
   line-height: 1.75;
   color: #333;
@@ -441,21 +404,14 @@ footer a { color: #888; }
   </div>
 </section>
 
-<!-- TOPICS PLACEHOLDER -->
-<section class="topics-placeholder">
-  <span class="badge">Coming soon</span>
-  <h3 style="margin-left: 10px; font-size: 1.15em;">Topic Coverage Trends</h3>
-  <p class="desc">Track how coverage of specific topics shifts over time. When the president speaks on an issue, see which outlets cover it, how much, and how the tone differs across networks. The chart below is a preview; topic detection will be added in a future update.</p>
-  <div class="topic-chips-mock">
-    <span class="topic-chip on">economy</span>
-    <span class="topic-chip on">immigration</span>
-    <span class="topic-chip on">foreign policy</span>
-    <span class="topic-chip">healthcare</span>
-    <span class="topic-chip">crime</span>
-    <span class="topic-chip">tariffs</span>
-    <span class="topic-chip">+ add topic</span>
+<!-- TOPICS -->
+<section class="topics-section">
+  <div class="chart-card chart-card-full">
+    <h3>Topic Coverage Trends</h3>
+    <p class="chart-note">Share of weekly <span id="topics-mode-label">TV segments</span> mentioning each topic. Click chips below to add or remove topics from the chart. Topics are matched by keyword (case-insensitive, whole-word) — definitions live in <code>scripts/topics.yaml</code>.</p>
+    <div class="topic-chips" id="topic-chips"></div>
+    <div id="chart-topics" class="chart-box chart-box-tall"></div>
   </div>
-  <div id="topics-mock-chart" class="topics-mock-chart"></div>
 </section>
 
 <!-- METHODOLOGY -->
@@ -463,25 +419,21 @@ footer a { color: #888; }
   <h2>About this project</h2>
   <p>The Presidential Coverage Tracker is a research project from Yale political scientists that measures the tone of presidential coverage across major US broadcast and cable news networks and digital news outlets. We collect closed-caption transcripts from the <a href="https://archive.org/details/tv" target="_blank" rel="noopener">Internet Archive's TV News Archive</a> and news headlines from <a href="https://search.mediacloud.org" target="_blank" rel="noopener">Media Cloud</a>, classify each segment and headline mentioning the president using a fine-tuned natural language inference model, and update this dashboard every few days.</p>
 
+  <!-- TODO: when the paper is posted, replace href="#" below with the actual URL on kevinmdeluca.com -->
+  <p>The classification model, training data, and analysis code for the net coverage score are open source. The paper's code repository is at <a href="https://github.com/kevin-deluca-polisci/presidential_headlines" target="_blank" rel="noopener">github.com/kevin-deluca-polisci/presidential_headlines</a>; the code for this dashboard lives at <a href="https://github.com/kevin-deluca-polisci/coverage-tracker" target="_blank" rel="noopener">github.com/kevin-deluca-polisci/coverage-tracker</a>. The full paper is <a href="#" target="_blank" rel="noopener">forthcoming</a>.</p>
+
   <p>Traditional methods of measuring media tone — dictionary-based word counts and document-level transformer sentiment classifiers — assign an overall positive, negative, or neutral score to a document rather than to the candidate it discusses. This document-level approach cannot identify to whom sentiment is directed. A headline like "Biden struggles to contain inflation" conveys a different signal about the president than "Inflation eases under Biden," yet both might be flagged as negative by a dictionary model that treats "inflation" as a negative term. We adapt methods from natural language inference (NLI) to measure candidate-specific media coverage. Rather than inferring tone from surface-level word usage, our approach uses stance detection to evaluate whether a headline or transcript segment implies that a given candidate is performing well or poorly.</p>
 
   <h3>Data &amp; classification</h3>
-  <p>Each broadcast transcript is split into 3-sentence windows. Windows mentioning "Trump" are classified using the <a href="https://huggingface.co/mlburnham/Political_DEBATE_large_v1.0" target="_blank" rel="noopener">Political DEBATE model</a> developed by Michael Burnham. We further train the model on a task that evaluates whether the text conveys a positive, negative, or neutral performance cue about Trump. The same method applies to digital news coverage using the headline as the unit of analysis.</p>
+  <p>Each broadcast transcript is split into 3-sentence windows. Windows mentioning "Trump" are classified using the <a href="https://huggingface.co/mlburnham/Political_DEBATE_large_v1.0" target="_blank" rel="noopener">Political DEBATE model</a> developed by Michael Burnham. We further train the model on a task that evaluates whether the text conveys a positive, negative, or neutral performance cue about Trump; full training procedure, validation, and reliability tests are documented in our <a href="https://github.com/kevin-deluca-polisci/presidential_headlines" target="_blank" rel="noopener">code repository</a> and accompanying <a href="#" target="_blank" rel="noopener">paper</a>. The same method applies to digital news coverage using the headline as the unit of analysis.</p>
   <p>A segment is classified as positive if the model scores a "yes" on the hypothesis "the author of this text believes that Trump is performing/performed/will perform well" and negative if the model scores a "yes" on the parallel "poorly" hypothesis.</p>
 
   <h3>Smoothing</h3>
   <p>The bold lines in each over-time chart are LOESS smooths (span = 0.5) fit to the weekly aggregates. Shaded bands are 95% confidence intervals from the LOESS fit. Faint lines underneath show the underlying weekly raw values that the smoother is fit to.</p>
 
-  <h3>Code &amp; paper</h3>
-  <p>The classification model, training data, and analysis code for the net coverage score are open source. The code repository for the underlying paper is available at <a href="https://github.com/kevin-deluca-polisci/presidential_headlines" target="_blank" rel="noopener">github.com/kevin-deluca-polisci/presidential_headlines</a>. The code for this dashboard lives at <a href="https://github.com/kevinmdeluca/coverage-tracker" target="_blank" rel="noopener">github.com/kevinmdeluca/coverage-tracker</a>.</p>
-  <!-- TODO: when the paper is posted, replace href="#" below with the actual URL on kevinmdeluca.com -->
-  <p>Full paper: <a href="#" target="_blank" rel="noopener">forthcoming</a>.</p>
-
-  <h3>Networks covered</h3>
-  <p>CBS, CNN, Fox News, ABC, NBC, and MSNBC/MSNow. Data runs from January 2025 to the present. We include national broadcast and cable news programs only — no local affiliates or regional newscasts.</p>
-
-  <h3>Digital news outlets covered</h3>
-  <p>Reuters, Fox News, CBS News, Bloomberg, CNN, ABC News, USA Today, New York Times, NBC News, Los Angeles Times, and NPR. Headlines are collected via the <a href="https://search.mediacloud.org" target="_blank" rel="noopener">Media Cloud API</a>.</p>
+  <h3>Networks and outlets covered</h3>
+  <p><strong>Broadcast and cable:</strong> CBS, CNN, Fox News, ABC, NBC, and MSNBC/MSNow. Data runs from January 2025 to the present. We include national broadcast and cable news programs only — no local affiliates or regional newscasts.</p>
+  <p><strong>Digital news:</strong> Reuters, Fox News, CBS News, Bloomberg, CNN, ABC News, USA Today, New York Times, NBC News, Los Angeles Times, and NPR. Headlines are collected via the <a href="https://search.mediacloud.org" target="_blank" rel="noopener">Media Cloud API</a>.</p>
 
   <h3>Data access</h3>
   <p>The weekly aggregated CSVs that power this page are released under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</p>
@@ -530,13 +482,25 @@ const TV_ORDER   = ["CBS","CNN","Fox","ABC","NBC","MSNBC/MSNow"];
 const NEWS_ORDER = ["Reuters","Fox News","CBS News","Bloomberg","CNN","ABC News",
                     "USA Today","New York Times","NBC News","Los Angeles Times","NPR"];
 
+// Topic colors. Falls back to a neutral gray if a new topic is added in
+// topics.yaml without an entry here.
+const TOPIC_COLORS = {
+  "economy":        "#1a6bb5",
+  "immigration":    "#cc0001",
+  "foreign policy": "#00843d",
+  "tariffs":        "#e5a823",
+  "healthcare":     "#9b59b6",
+  "crime":          "#555555"
+};
+
 // =====================================================================
 // STATE
 // =====================================================================
 const state = {
   mode: "tv",                    // "tv" | "news"
-  data: { tv: null, tv_agg: null, news: null, news_agg: null },
-  selectedGroups: [],            // names selected in chips ([]=All)
+  data: { tv: null, tv_agg: null, news: null, news_agg: null, topics: null },
+  selectedGroups: [],            // network/outlet chips selected ([]=All)
+  selectedTopics: [],            // topic chips selected ([]=All)
   dateRange: null,               // [Date, Date]
   preset: "all",
 };
@@ -573,18 +537,19 @@ function loadCsv(path) {
 // DATA LOADING
 // =====================================================================
 async function loadAll() {
-  const [tv, tv_agg, news, news_agg] = await Promise.all([
+  const [tv, tv_agg, news, news_agg, topics] = await Promise.all([
     loadCsv("data/weekly_tv.csv"),
     loadCsv("data/weekly_tv_agg.csv"),
     loadCsv("data/weekly_news.csv"),
     loadCsv("data/weekly_news_agg.csv"),
+    loadCsv("data/topics_weekly.csv").catch(() => null),  // optional
   ]);
-  // Convert weeks to Date objects
   const dateify = rows => rows.map(r => ({...r, week: parseDate(r.week)}));
   state.data.tv       = dateify(tv);
   state.data.tv_agg   = dateify(tv_agg);
   state.data.news     = dateify(news);
   state.data.news_agg = dateify(news_agg);
+  state.data.topics   = topics ? dateify(topics) : null;
 }
 
 // =====================================================================
@@ -926,6 +891,92 @@ function onCustomDateChange() {
 }
 
 // =====================================================================
+// TOPICS — chips and chart
+// =====================================================================
+function topicList() {
+  if (!state.data.topics) return [];
+  const seen = new Set();
+  const order = [];
+  for (const r of state.data.topics) {
+    if (!seen.has(r.topic)) { seen.add(r.topic); order.push(r.topic); }
+  }
+  return order;
+}
+
+function renderTopicChips() {
+  const container = document.getElementById("topic-chips");
+  if (!container) return;
+  container.innerHTML = "";
+  if (!state.data.topics) {
+    container.innerHTML = '<span style="font-size:12px; color:#aaa;">No topics data yet — run scripts/build_topics.R to generate.</span>';
+    return;
+  }
+  const topics = topicList();
+  // "All" chip
+  const all = document.createElement("span");
+  all.className = "chip all" + (state.selectedTopics.length === 0 ? " active" : "");
+  all.textContent = "All topics";
+  all.onclick = () => { state.selectedTopics = []; renderTopicChips(); renderTopicChart(); };
+  container.appendChild(all);
+  topics.forEach(t => {
+    const chip = document.createElement("span");
+    chip.className = "chip" + (state.selectedTopics.includes(t) ? " active" : "");
+    chip.textContent = t;
+    if (state.selectedTopics.includes(t)) {
+      const c = TOPIC_COLORS[t] || "#888";
+      chip.style.background = c;
+      chip.style.borderColor = c;
+    }
+    chip.onclick = () => {
+      const i = state.selectedTopics.indexOf(t);
+      if (i >= 0) state.selectedTopics.splice(i, 1);
+      else state.selectedTopics.push(t);
+      renderTopicChips();
+      renderTopicChart();
+    };
+    container.appendChild(chip);
+  });
+}
+
+function renderTopicChart() {
+  const el = document.getElementById("chart-topics");
+  if (!el) return;
+  document.getElementById("topics-mode-label").textContent =
+    state.mode === "tv" ? "TV segments" : "headlines";
+  if (!state.data.topics) {
+    Plotly.purge("chart-topics");
+    el.innerHTML = '<div class="loading">No topics data available.</div>';
+    return;
+  }
+  el.innerHTML = "";
+  const shareCol = state.mode === "tv" ? "share_tv" : "share_news";
+  const countCol = state.mode === "tv" ? "count_tv" : "count_news";
+  const unit     = state.mode === "tv" ? "segments" : "headlines";
+  const topics = topicList();
+  const visible = state.selectedTopics.length === 0 ? topics : state.selectedTopics;
+  const traces = visible.map(t => {
+    let sub = state.data.topics.filter(r => r.topic === t);
+    if (state.dateRange) {
+      const [lo, hi] = state.dateRange;
+      sub = sub.filter(r => r.week >= lo && r.week <= hi);
+    }
+    const color = TOPIC_COLORS[t] || "#888";
+    return {
+      x: sub.map(r => r.week),
+      y: sub.map(r => r[shareCol]),
+      type: "scatter", mode: "lines",
+      line: { color, width: 2.5 },
+      name: t,
+      customdata: sub.map(r => r[countCol]),
+      hovertemplate: `<b>${t}</b>: %{y:.1f}% &middot; %{customdata:,} ${unit}<extra></extra>`
+    };
+  });
+  Plotly.react("chart-topics", traces,
+    baseLayout(`% of ${unit}`, { pct: true, zero: false }),
+    PLOTLY_CONFIG);
+}
+
+// =====================================================================
 // MASTER RENDER
 // =====================================================================
 function renderAllCharts() {
@@ -934,37 +985,7 @@ function renderAllCharts() {
   renderTimeChart("chart-neg", "pct_negative","smooth_neg", "smooth_neg_lo", "smooth_neg_hi", "% negative");
   renderVolume();
   renderBar();
-}
-
-// =====================================================================
-// TOPICS PREVIEW (synthetic stacked area)
-// =====================================================================
-function renderTopicsMock() {
-  const weeks = [];
-  const start = new Date(Date.UTC(2025, 0, 6));
-  for (let i = 0; i < 72; i++) {
-    weeks.push(new Date(start.getTime() + i * 7 * 86400000));
-  }
-  const topics = [
-    { name: "economy",        color: "#1a6bb5", base: 28, amp: 7,  phase: 0.2 },
-    { name: "immigration",    color: "#cc0001", base: 22, amp: 9,  phase: 1.3 },
-    { name: "foreign policy", color: "#00843d", base: 18, amp: 6,  phase: 2.4 },
-  ];
-  const traces = topics.map(t => ({
-    x: weeks,
-    y: weeks.map((_, i) => Math.max(0, t.base + t.amp * Math.sin(i / 7 + t.phase) +
-                                        (Math.sin(i / 3 + t.phase) * 2))),
-    name: t.name,
-    type: "scatter", mode: "lines",
-    stackgroup: "one", groupnorm: "",
-    line: { color: t.color, width: 0 },
-    fillcolor: hexToRgba(t.color, 0.55),
-    hovertemplate: `<b>${t.name}</b>: %{y:.0f}%<extra></extra>`
-  }));
-  const lay = baseLayout("share of coverage", { pct: false, zero: false });
-  lay.margin = { l: 50, r: 16, t: 4, b: 36 };
-  lay.legend = { orientation: "h", y: -0.18, x: 0.5, xanchor: "center", font: { size: 11 } };
-  Plotly.newPlot("topics-mock-chart", traces, lay, PLOTLY_CONFIG);
+  renderTopicChart();
 }
 
 // =====================================================================
@@ -1026,8 +1047,8 @@ function postHeight() {
     await loadAll();
     applyPreset("all");
     renderChips();
+    renderTopicChips();
     renderAllCharts();
-    renderTopicsMock();
     // Tell any embedding parent our height (now and on resize/changes)
     postHeight();
     window.addEventListener("resize", postHeight);

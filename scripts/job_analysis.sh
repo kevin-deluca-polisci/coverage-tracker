@@ -88,15 +88,17 @@ Rscript $BASE/coverage-tracker/scripts/build_aggregates.R \
   --headlines $BASE/trump_headlines_analyzed.csv \
   --out-dir   $BASE/coverage-tracker-data
 
-# 8) Also copy the smoothed CSVs to the same staging dir
-cp $BASE/gp_smooth_tv.csv      $BASE/coverage-tracker-data/
-cp $BASE/gp_smooth_tv_agg.csv  $BASE/coverage-tracker-data/
-cp $BASE/gp_smooth_news.csv    $BASE/coverage-tracker-data/
-cp $BASE/gp_smooth_news_agg.csv $BASE/coverage-tracker-data/
+# 8) Build topic counts (reads same raw files + scripts/topics.yaml)
+echo "Building topic counts..."
+Rscript $BASE/coverage-tracker/scripts/build_topics.R \
+  --chunks    $BASE/trump_performance_chunks.csv \
+  --headlines $BASE/trump_headlines_analyzed.csv \
+  --topics    $BASE/coverage-tracker/scripts/topics.yaml \
+  --out-dir   $BASE/coverage-tracker-data
 
 echo "=============================================="
 echo "  Pipeline complete: $(date)"
-echo "  Aggregates staged in $BASE/coverage-tracker-data/"
+echo "  Aggregates and topics staged in $BASE/coverage-tracker-data/"
 echo "  Next step: from your Mac, run ./update.sh in"
 echo "  the coverage-tracker repo to pull and push."
 echo "=============================================="
