@@ -123,7 +123,7 @@ cp scripts/pipeline/com.kevinmdeluca.coverage-tracker.plist ~/Library/LaunchAgen
 launchctl load ~/Library/LaunchAgents/com.kevinmdeluca.coverage-tracker.plist
 ```
 
-By default it runs every 3 days at 09:00 local time **if your Mac is awake** at that moment (launchd will run it as soon as the Mac wakes up if it missed the slot). Adjust the `StartCalendarInterval` block to taste.
+By default it runs every 3 days at 18:00 local time **if your Mac is awake** at that moment (launchd will run it as soon as the Mac wakes up if it missed the slot). Adjust the `StartCalendarInterval` block to taste.
 
 Logs go to `~/Library/Logs/coverage-tracker.log`.
 
