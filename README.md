@@ -49,29 +49,6 @@ coverage-tracker/
 
 Raw transcript chunks and analyzed headline CSVs are **not** tracked in this repo (they're large; see `.gitignore`). They live in `data/raw/` on your local machine and/or on the compute cluster. Only the small aggregated CSVs the public-facing page needs are committed.
 
-## Two ways to refresh the data
-
-**On the Yale YCRC cluster (GPU-accelerated):**
-
-```bash
-ssh mccleary.ycrc.yale.edu
-cd /nfs/roberts/scratch/pi_kd769/zsk9/coverage-tracker/scripts
-./update_all.sh 2026-05-15 2026-05-29
-# When the SLURM analysis job finishes, on your Mac:
-./update.sh
-```
-
-**Or locally on a Mac (Apple Silicon MPS):**
-
-```bash
-cd ~/Library/CloudStorage/Dropbox/Claude/website/coverage-tracker
-source .venv/bin/activate
-./scripts/update_local.sh                 # incremental via --update
-./scripts/update_local.sh 2026-05-15 2026-05-29   # pinned window
-```
-
-See `DEPLOY.md` for the cluster details and `scripts/pipeline/SETUP_LOCAL.md` for one-time local setup (Python venv, Media Cloud key, R packages).
-
 ## Networks and outlets covered
 
 **Broadcast and cable:** CBS, CNN, Fox News, ABC, NBC, MSNBC/MSNow. National programs only — no local affiliates.
