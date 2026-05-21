@@ -256,4 +256,75 @@ message("Wrote weekly_news.csv (", nrow(weekly_news), " rows, ",
         length(unique(weekly_news$outlet)), " outlets)")
 message("Wrote weekly_news_agg.csv (", nrow(weekly_news_agg), " weeks)")
 
+# ---- Trailing 7-day window (for KPI cards) ----------------------------
+# Computes two contiguous 7-day windows ending at max(date) in each dataset:
+#   current = [max_date - 6,  max_date]
+#   prior   = [max_date - 13, max_date - 7]
+# Stats per group and overall. Written to data/trailing_7d.json for the
+# dashboard's KPI cards. This avoids the "partial current week" problem
+# that comparing weekly buckets has.
+
+trailing_stats <- function(d) {
+  if (is.null(d) || nrow(d) == 0) {
+    return(list(net_score = NA_real_, pct_negative = NA_real_,
+                pct_positive = NA_real_, total = 0L))
+  }
+  pos <- mean(d$debate_performance ==  1, na.rm = TRUE) * 100
+  neg <- mean(d$debate_performance == -1, na.rm = TRUE) * 100
+  list(
+    net_score    = round(pos - neg, 2),
+    pct_negative = round(neg, 2),
+    pct_positive = round(pos, 2),
+    total        = as.integer(nrow(d))
+  )
+}
+
+build_window <- function(d, group_col, start, end) {
+  by_group <- list()
+  groups <- sort(unique(d[[group_col]]))
+  for (g in groups) {
+    by_group[[g]] <- trailing_stats(d[d[[group_col]] == g, ])
+  }
+  list(
+    start    = format(start, "%Y-%m-%d"),
+    end      = format(end,   "%Y-%m-%d"),
+    all      = trailing_stats(d),
+    by_group = by_group
+  )
+}
+
+compute_trailing <- function(df, group_col) {
+  if (is.null(df) || nrow(df) == 0) return(NULL)
+  max_date <- max(df$date, na.rm = TRUE)
+  cur_start <- max_date - 6
+  cur_end   <- max_date
+  pri_start <- max_date - 13
+  pri_end   <- max_date - 7
+  list(
+    current = build_window(df[df$date >= cur_start & df$date <= cur_end, ],
+                            group_col, cur_start, cur_end),
+    prior   = build_window(df[df$date >= pri_start & df$date <= pri_end, ],
+                            group_col, pri_start, pri_end),
+    as_of   = format(max_date, "%Y-%m-%d")
+  )
+}
+
+trailing <- list(
+  tv           = compute_trailing(tv,   "network"),
+  news         = compute_trailing(news, "outlet"),
+  generated_at = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC")
+)
+
+trailing_path <- file.path(opt[["out-dir"]], "trailing_7d.json")
+if (requireNamespace("jsonlite", quietly = TRUE)) {
+  jsonlite::write_json(trailing, trailing_path,
+                       pretty = TRUE, auto_unbox = TRUE, null = "null")
+  message("Wrote ", trailing_path,
+          " (tv window: ", trailing$tv$current$start, " to ", trailing$tv$current$end,
+          "; news window: ", trailing$news$current$start, " to ", trailing$news$current$end, ")")
+} else {
+  warning("jsonlite not installed; skipping trailing_7d.json. Install with:\n",
+          "  Rscript -e 'install.packages(\"jsonlite\", repos=\"https://cloud.r-project.org\")'")
+}
+
 message("Done.")

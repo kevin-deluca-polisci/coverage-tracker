@@ -235,6 +235,38 @@ header .meta { color: #999; margin: 0; font-size: 12px; font-family: 'IBM Plex M
   border-radius: 3px;
   color: #444;
 }
+.topics-placeholder-card {
+  border: 1px dashed #d4d4d4;
+  border-radius: 8px;
+  padding: 28px 32px;
+  background: #fcfcfc;
+  text-align: center;
+}
+.topics-placeholder-card .badge {
+  display: inline-block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  background: #f0eee9;
+  color: #8a7a3d;
+  padding: 4px 10px;
+  border-radius: 4px;
+  margin-bottom: 14px;
+  font-weight: 500;
+}
+.topics-placeholder-card h3 {
+  font-family: 'IBM Plex Serif', serif;
+  font-weight: 500;
+  font-size: 1.25em;
+  margin: 0 0 8px;
+}
+.topics-placeholder-card p {
+  color: #777;
+  font-size: 14px;
+  max-width: 560px;
+  margin: 0 auto;
+  line-height: 1.55;
+}
 
 /* ---------- Methodology ---------- */
 .methodology {
@@ -323,28 +355,28 @@ footer a { color: #888; }
 <!-- KPI STRIP -->
 <section class="kpi-strip" id="kpi-strip">
   <div class="kpi-card">
-    <div class="kpi-label">Net score this week</div>
+    <div class="kpi-label">Net score, last 7 days</div>
     <div>
       <div class="kpi-value" id="kpi-net">—</div>
       <div class="kpi-delta" id="kpi-net-delta">&nbsp;</div>
     </div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-label">% Negative this week</div>
+    <div class="kpi-label">% Negative, last 7 days</div>
     <div>
       <div class="kpi-value" id="kpi-neg">—</div>
       <div class="kpi-delta" id="kpi-neg-delta">&nbsp;</div>
     </div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-label">Coverage volume</div>
+    <div class="kpi-label">Coverage volume, last 7 days</div>
     <div>
       <div class="kpi-value" id="kpi-vol">—</div>
       <div class="kpi-delta" id="kpi-vol-delta">&nbsp;</div>
     </div>
   </div>
   <div class="kpi-card">
-    <div class="kpi-label">Biggest mover</div>
+    <div class="kpi-label">Biggest mover, last 7 days</div>
     <div>
       <div class="kpi-value small" id="kpi-mover">—</div>
       <div class="kpi-delta" id="kpi-mover-delta">&nbsp;</div>
@@ -404,13 +436,12 @@ footer a { color: #888; }
   </div>
 </section>
 
-<!-- TOPICS -->
+<!-- TOPICS (placeholder while we refine topic definitions) -->
 <section class="topics-section">
-  <div class="chart-card chart-card-full">
+  <div class="topics-placeholder-card">
+    <span class="badge">Coming soon</span>
     <h3>Topic Coverage Trends</h3>
-    <p class="chart-note">Share of weekly <span id="topics-mode-label">TV segments</span> mentioning each topic. Click chips below to add or remove topics from the chart. Topics are matched by keyword (case-insensitive, whole-word) — definitions live in <code>scripts/topics.yaml</code>.</p>
-    <div class="topic-chips" id="topic-chips"></div>
-    <div id="chart-topics" class="chart-box chart-box-tall"></div>
+    <p>Track coverage volume for specific topics over time. Currently being refined — keyword definitions are being reviewed to reduce noise before we publish the live trends.</p>
   </div>
 </section>
 
@@ -498,7 +529,7 @@ const TOPIC_COLORS = {
 // =====================================================================
 const state = {
   mode: "tv",                    // "tv" | "news"
-  data: { tv: null, tv_agg: null, news: null, news_agg: null, topics: null },
+  data: { tv: null, tv_agg: null, news: null, news_agg: null, topics: null, trailing: null },
   selectedGroups: [],            // network/outlet chips selected ([]=All)
   selectedTopics: [],            // topic chips selected ([]=All)
   dateRange: null,               // [Date, Date]
@@ -509,7 +540,11 @@ const state = {
 // HELPERS
 // =====================================================================
 const fmtDate    = d => d.toISOString().slice(0,10);
-const fmtPretty  = d => d.toLocaleDateString("en-US", { month:"long", day:"numeric", year:"numeric" });
+// Format dates in UTC so we don't lose a day in negative-UTC timezones
+// (e.g. 2026-05-11T00:00Z would otherwise display as "May 10" in EDT).
+const fmtPretty  = d => d.toLocaleDateString("en-US", {
+  month: "long", day: "numeric", year: "numeric", timeZone: "UTC"
+});
 const fmtNum     = n => Math.round(n).toLocaleString("en-US");
 const fmtPct     = (n, d=1) => (n>=0?"+":"") + n.toFixed(d) + "%";
 const fmtPctAbs  = (n, d=1) => n.toFixed(d) + "%";
@@ -537,12 +572,14 @@ function loadCsv(path) {
 // DATA LOADING
 // =====================================================================
 async function loadAll() {
-  const [tv, tv_agg, news, news_agg, topics] = await Promise.all([
-    loadCsv("data/weekly_tv.csv"),
-    loadCsv("data/weekly_tv_agg.csv"),
-    loadCsv("data/weekly_news.csv"),
-    loadCsv("data/weekly_news_agg.csv"),
-    loadCsv("data/topics_weekly.csv").catch(() => null),  // optional
+  const cacheBust = "?v=" + Date.now();
+  const [tv, tv_agg, news, news_agg, topics, trailing] = await Promise.all([
+    loadCsv("data/weekly_tv.csv" + cacheBust),
+    loadCsv("data/weekly_tv_agg.csv" + cacheBust),
+    loadCsv("data/weekly_news.csv" + cacheBust),
+    loadCsv("data/weekly_news_agg.csv" + cacheBust),
+    loadCsv("data/topics_weekly.csv" + cacheBust).catch(() => null),  // optional
+    fetch("data/trailing_7d.json" + cacheBust).then(r => r.ok ? r.json() : null).catch(() => null),
   ]);
   const dateify = rows => rows.map(r => ({...r, week: parseDate(r.week)}));
   state.data.tv       = dateify(tv);
@@ -550,6 +587,7 @@ async function loadAll() {
   state.data.news     = dateify(news);
   state.data.news_agg = dateify(news_agg);
   state.data.topics   = topics ? dateify(topics) : null;
+  state.data.trailing = trailing;
 }
 
 // =====================================================================
@@ -583,44 +621,43 @@ function selectedRows() {
 }
 
 // =====================================================================
-// KPI COMPUTATION
+// KPI COMPUTATION (trailing 7 days vs prior 7 days)
 // =====================================================================
 function computeKpis() {
-  const agg = currentAgg();
-  if (!agg || agg.length < 2) return null;
-  const last = agg[agg.length - 1];
-  const prev = agg[agg.length - 2];
+  const tr = state.data.trailing;
+  if (!tr) return null;
+  const slice = state.mode === "tv" ? tr.tv : tr.news;
+  if (!slice || !slice.current || !slice.prior) return null;
+  const cur = slice.current;
+  const pri = slice.prior;
 
-  // Biggest mover: largest abs change in net_score between last and prev week,
-  // restricted to per-group rows
-  const per = currentPerGroup();
-  const lastWeek = last.week.getTime();
-  const prevWeek = prev.week.getTime();
-  const lastByGroup = new Map();
-  const prevByGroup = new Map();
-  per.forEach(r => {
-    if (r.week.getTime() === lastWeek) lastByGroup.set(r[groupCol()], r.net_score);
-    if (r.week.getTime() === prevWeek) prevByGroup.set(r[groupCol()], r.net_score);
-  });
+  // Biggest mover: per-group, current vs prior net_score delta
   let mover = null, moverDelta = 0;
-  for (const [g, n] of lastByGroup) {
-    const p = prevByGroup.get(g);
-    if (p == null) continue;
-    const d = n - p;
+  const curGroups = cur.by_group || {};
+  const priGroups = pri.by_group || {};
+  for (const g of Object.keys(curGroups)) {
+    const c = curGroups[g] && curGroups[g].net_score;
+    const p = priGroups[g] && priGroups[g].net_score;
+    if (c == null || p == null) continue;
+    const d = c - p;
     if (Math.abs(d) > Math.abs(moverDelta)) { mover = g; moverDelta = d; }
   }
 
+  const ca = cur.all || {};
+  const pa = pri.all || {};
+
   return {
-    netNow:   last.net_score,
-    netDelta: last.net_score - prev.net_score,
-    negNow:   last.pct_negative,
-    negDelta: last.pct_negative - prev.pct_negative,
-    volNow:   last.total_segments,
-    volDelta: prev.total_segments === 0 ? 0
-              : (last.total_segments - prev.total_segments) / prev.total_segments * 100,
+    netNow:   ca.net_score,
+    netDelta: (ca.net_score != null && pa.net_score != null) ? ca.net_score - pa.net_score : 0,
+    negNow:   ca.pct_negative,
+    negDelta: (ca.pct_negative != null && pa.pct_negative != null) ? ca.pct_negative - pa.pct_negative : 0,
+    volNow:   ca.total,
+    volDelta: (pa.total > 0) ? (ca.total - pa.total) / pa.total * 100 : 0,
     mover, moverDelta,
-    lastWeek: last.week,
-    units:    state.mode === "tv" ? "segments" : "headlines",
+    asOf:        parseDate(slice.as_of),
+    windowStart: parseDate(cur.start),
+    windowEnd:   parseDate(cur.end),
+    units:       state.mode === "tv" ? "segments" : "headlines",
   };
 }
 
@@ -637,7 +674,7 @@ function renderKpis() {
   };
 
   document.getElementById("kpi-net").textContent = k ? fmtPctAbs(k.netNow, 1) : "—";
-  setDelta(document.getElementById("kpi-net-delta"), k?.netDelta ?? 0, "pp WoW");
+  setDelta(document.getElementById("kpi-net-delta"), k?.netDelta ?? 0, "pp vs prior 7d");
 
   document.getElementById("kpi-neg").textContent = k ? fmtPctAbs(k.negNow, 1) : "—";
   // % negative: up is bad
@@ -647,11 +684,11 @@ function renderKpis() {
     const arrow = v > 0 ? "▲" : (v < 0 ? "▼" : "→");
     const cls   = v > 0 ? "down" : (v < 0 ? "up" : "flat");
     el.className = `kpi-delta ${cls}`;
-    el.innerHTML = `<span class="arrow">${arrow}</span>${v>=0?"+":""}${v.toFixed(1)}pp WoW`;
+    el.innerHTML = `<span class="arrow">${arrow}</span>${v>=0?"+":""}${v.toFixed(1)}pp vs prior 7d`;
   }
 
   document.getElementById("kpi-vol").textContent = k ? fmtNum(k.volNow) + " " + k.units : "—";
-  setDelta(document.getElementById("kpi-vol-delta"), k?.volDelta ?? 0, "% WoW", true);
+  setDelta(document.getElementById("kpi-vol-delta"), k?.volDelta ?? 0, "% vs prior 7d");
 
   document.getElementById("kpi-mover").textContent = k && k.mover ? k.mover : "—";
   {
@@ -662,16 +699,20 @@ function renderKpis() {
       const arrow = v > 0 ? "▲" : (v < 0 ? "▼" : "→");
       const cls   = v > 0 ? "up" : (v < 0 ? "down" : "flat");
       el.className = `kpi-delta ${cls}`;
-      el.innerHTML = `<span class="arrow">${arrow}</span>${v>=0?"+":""}${v.toFixed(1)}pp WoW`;
+      el.innerHTML = `<span class="arrow">${arrow}</span>${v>=0?"+":""}${v.toFixed(1)}pp vs prior 7d`;
     }
   }
 
-  // Meta line in header
+  // Meta line in header — uses the trailing window's as_of (actual last data date)
   const meta = document.getElementById("meta-line");
-  if (k) {
+  if (k && k.asOf) {
     const totalTv   = state.data.tv.reduce((s,r)=>s+(r.total_segments||0),0);
     const totalNews = state.data.news.reduce((s,r)=>s+(r.total_segments||0),0);
-    meta.textContent = `Data through ${fmtPretty(k.lastWeek)} · ${fmtNum(totalTv)} TV segments · ${fmtNum(totalNews)} headlines`;
+    meta.textContent = `Data through ${fmtPretty(k.asOf)} · ${fmtNum(totalTv)} TV segments · ${fmtNum(totalNews)} headlines`;
+  } else if (k) {
+    const totalTv   = state.data.tv.reduce((s,r)=>s+(r.total_segments||0),0);
+    const totalNews = state.data.news.reduce((s,r)=>s+(r.total_segments||0),0);
+    meta.textContent = `${fmtNum(totalTv)} TV segments · ${fmtNum(totalNews)} headlines`;
   }
 }
 
@@ -985,7 +1026,9 @@ function renderAllCharts() {
   renderTimeChart("chart-neg", "pct_negative","smooth_neg", "smooth_neg_lo", "smooth_neg_hi", "% negative");
   renderVolume();
   renderBar();
-  renderTopicChart();
+  // Topic chart intentionally disabled while topic definitions are being
+  // refined. The "Coming soon" placeholder card shows in its place.
+  // renderTopicChart();
 }
 
 // =====================================================================
@@ -1047,7 +1090,8 @@ function postHeight() {
     await loadAll();
     applyPreset("all");
     renderChips();
-    renderTopicChips();
+    // Topic chips also disabled with the placeholder; uncomment when re-enabling.
+    // renderTopicChips();
     renderAllCharts();
     // Tell any embedding parent our height (now and on resize/changes)
     postHeight();

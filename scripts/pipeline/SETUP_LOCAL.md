@@ -76,6 +76,52 @@ python3 -c "import torch; print('CUDA:', torch.cuda.is_available()); print('MPS:
 
 You should see `MPS: True` on Apple Silicon.
 
+### 6. (Recommended) Seed `data/raw/` from the cluster
+
+If you've been running on the YCRC cluster and already have months of classified data there, copy it down before doing your first local refresh. Otherwise the first `--update` run will treat everything as new and try to scrape and classify from the default start date (2025-01-01), which can take many hours.
+
+The canonical layout the pipeline expects:
+
+```
+data/raw/
+├── all_networks_dataset/
+│   ├── trump_performance_chunks.csv     # classified TV chunks (the big one)
+│   ├── all_<network>_shows_dataset.csv  # per-network show CSVs (optional but help dedup)
+│   └── scraper_state.json               # per-network last-run dates
+├── mediacloud_data/
+│   └── trump_headlines_master.csv       # raw scraped headlines (master)
+├── trump_headlines_analyzed.csv         # classified headlines
+└── all_networks_master.csv              # combined master (optional, large)
+```
+
+**Important: `trump_performance_chunks.csv` goes inside `all_networks_dataset/`, NOT directly in `data/raw/`.** The scraper reads + appends to it in place; putting it at the wrong path causes the pipeline to start from scratch and overwrite your historical data with a tiny new file.
+
+To pull from the cluster:
+
+```bash
+CLUSTER=YOUR_USER@mccleary.ycrc.yale.edu
+mkdir -p data/raw/all_networks_dataset data/raw/mediacloud_data
+scp $CLUSTER:/nfs/roberts/scratch/pi_kd769/zsk9/trump_performance_chunks.csv data/raw/all_networks_dataset/
+scp $CLUSTER:/nfs/roberts/scratch/pi_kd769/zsk9/trump_headlines_analyzed.csv data/raw/
+scp -r $CLUSTER:/nfs/roberts/scratch/pi_kd769/zsk9/mediacloud_data data/raw/
+# Optional but recommended for proper --update behavior:
+scp -r $CLUSTER:/nfs/roberts/scratch/pi_kd769/zsk9/all_networks_dataset data/raw/
+```
+
+If you don't have a usable `scraper_state.json` from the cluster, hand-write one — the pipeline reads `data/raw/all_networks_dataset/scraper_state.json` with the shape:
+
+```json
+{
+  "cbs":   { "last_run": "YYYY-MM-DD", "last_start": "YYYY-MM-DD", "last_end": "YYYY-MM-DD" },
+  "cnn":   { "last_run": "YYYY-MM-DD", ... },
+  "fox":   { ... },
+  "abc":   { ... },
+  "msnbc": { ... }
+}
+```
+
+Set `last_run` to whatever date your cluster pipeline last covered. `--update` mode will then start from `last_run − 8 days` (the default lookback window) instead of re-scraping everything from 2025.
+
 ## Day-to-day usage
 
 Once a refresh window is decided, from the `coverage-tracker` directory:
@@ -98,6 +144,21 @@ Once a refresh window is decided, from the `coverage-tracker` directory:
 The script prints what it's doing at each of the five steps, then stages updated `data/weekly_*.csv` + `data/topics_weekly.csv`, commits, and pushes. GitHub Pages picks up the change in ~1 minute.
 
 Raw scraped data (the big chunks and headlines files) lives in `data/raw/` on your Mac and is gitignored — it stays local.
+
+### How updates handle existing data
+
+Every scrape/classify step in the pipeline reads the existing canonical file, classifies only new rows, then merges + dedupes + writes the combined result back. Specifically:
+
+- TV chunks: dedupe by `(article_id, chunk_id)`
+- Headlines: dedupe by `(title, date)`
+- Per-network show CSVs: dedupe by `identifier`
+- Headlines master: dedupe by URL
+
+So as long as the canonical files are at the right paths, **the pipeline always appends, never overwrites historical data.** `update_local.sh` includes a safety check that refuses to rebuild aggregates if the chunks or analyzed-headlines file is missing or empty (so you don't get a "dashboard lost all its history" surprise from an upstream failure).
+
+### Catch-up classification (built in)
+
+Step 1 of `update_local.sh` runs `scrape_all_networks.py --analysis-only` *before* the regular `--update` scrape. This catches and classifies any shows that previously got scraped but never made it into the chunks file (which can happen if a run crashed mid-classification or the chunks file got restored from backup). The catch-up step is fast when there's nothing stranded — it just reads per-network CSVs, compares identifiers against the chunks file, and exits — but it rescues your data when there is. You don't need to run anything manually; it's part of every TV refresh.
 
 ## How long does it actually take?
 
@@ -140,3 +201,6 @@ launchctl unload ~/Library/LaunchAgents/com.kevinmdeluca.coverage-tracker.plist
 - **Out of memory during classification**: edit the script to drop `--batch-size 64` to e.g. 16 or 8.
 - **`MEDIACLOUD_API_KEY isn't set`**: open a fresh terminal after editing `~/.zshrc` so the export is sourced, or `source ~/.zshrc` in the current shell.
 - **R packages missing**: install with the command in step 3 above.
+- **"WARNING: a stale chunks file exists at data/raw/trump_performance_chunks.csv"**: legacy location. Move the file to `data/raw/all_networks_dataset/trump_performance_chunks.csv` (or delete it if you already have the canonical copy there).
+- **"ERROR: data/raw/all_networks_dataset/trump_performance_chunks.csv is missing or empty"**: the safety check tripped. Either the scrape step failed, or the file is in the wrong place. Confirm `ls -lh data/raw/all_networks_dataset/trump_performance_chunks.csv` shows a reasonably-sized file before re-running.
+- **"data/weekly_tv.csv only shows recent weeks"**: the chunks file got truncated somewhere upstream. Restore from a backup (Dropbox file history, Time Machine, cluster) — do not re-run aggregates until the canonical chunks file has the full history again.
