@@ -4,47 +4,47 @@
       "start": "2026-05-15",
       "end": "2026-05-21",
       "all": {
-        "net_score": -16.08,
-        "pct_negative": 30.93,
-        "pct_positive": 14.85,
-        "total": 653
+        "net_score": -17.63,
+        "pct_negative": 30.15,
+        "pct_positive": 12.52,
+        "total": 4520
       },
       "by_group": {
         "ABC": {
-          "net_score": -15.22,
-          "pct_negative": 30.43,
-          "pct_positive": 15.22,
-          "total": 46
+          "net_score": -13.25,
+          "pct_negative": 23.19,
+          "pct_positive": 9.94,
+          "total": 332
         },
         "CBS": {
-          "net_score": 14.81,
-          "pct_negative": 3.7,
-          "pct_positive": 18.52,
-          "total": 27
+          "net_score": -10.24,
+          "pct_negative": 22.05,
+          "pct_positive": 11.81,
+          "total": 127
         },
         "CNN": {
-          "net_score": -22.02,
-          "pct_negative": 32.57,
-          "pct_positive": 10.55,
-          "total": 218
+          "net_score": -18.62,
+          "pct_negative": 29.13,
+          "pct_positive": 10.5,
+          "total": 1133
         },
         "Fox": {
-          "net_score": 9.85,
-          "pct_negative": 15.91,
-          "pct_positive": 25.76,
-          "total": 132
+          "net_score": 5.06,
+          "pct_negative": 16.54,
+          "pct_positive": 21.6,
+          "total": 949
         },
         "MSNBC/MSNow": {
-          "net_score": -30.41,
-          "pct_negative": 42.86,
-          "pct_positive": 12.44,
-          "total": 217
+          "net_score": -30.12,
+          "pct_negative": 39.21,
+          "pct_positive": 9.09,
+          "total": 1816
         },
         "NBC": {
-          "net_score": -7.69,
-          "pct_negative": 15.38,
-          "pct_positive": 7.69,
-          "total": 13
+          "net_score": -18.4,
+          "pct_negative": 36.2,
+          "pct_positive": 17.79,
+          "total": 163
         }
       }
     },
@@ -52,47 +52,47 @@
       "start": "2026-05-08",
       "end": "2026-05-14",
       "all": {
-        "net_score": -22.81,
-        "pct_negative": 33.4,
-        "pct_positive": 10.59,
-        "total": 2473
+        "net_score": -20.23,
+        "pct_negative": 31.36,
+        "pct_positive": 11.13,
+        "total": 4493
       },
       "by_group": {
         "ABC": {
-          "net_score": 1.18,
-          "pct_negative": 14.2,
-          "pct_positive": 15.38,
-          "total": 169
+          "net_score": 0,
+          "pct_negative": 14.41,
+          "pct_positive": 14.41,
+          "total": 229
         },
         "CBS": {
-          "net_score": -3.88,
-          "pct_negative": 15.53,
-          "pct_positive": 11.65,
-          "total": 103
+          "net_score": -7.14,
+          "pct_negative": 18.45,
+          "pct_positive": 11.31,
+          "total": 168
         },
         "CNN": {
-          "net_score": -22.13,
-          "pct_negative": 31.56,
-          "pct_positive": 9.43,
-          "total": 488
+          "net_score": -18.56,
+          "pct_negative": 29.83,
+          "pct_positive": 11.27,
+          "total": 1207
         },
         "Fox": {
-          "net_score": -4.7,
-          "pct_negative": 21.7,
-          "pct_positive": 17,
-          "total": 447
+          "net_score": -0.62,
+          "pct_negative": 18.39,
+          "pct_positive": 17.76,
+          "total": 805
         },
         "MSNBC/MSNow": {
-          "net_score": -35.43,
-          "pct_negative": 43.33,
-          "pct_positive": 7.9,
-          "total": 1177
+          "net_score": -33.01,
+          "pct_negative": 41.02,
+          "pct_positive": 8.01,
+          "total": 1972
         },
         "NBC": {
-          "net_score": -17.98,
-          "pct_negative": 28.09,
-          "pct_positive": 10.11,
-          "total": 89
+          "net_score": -15.18,
+          "pct_negative": 25,
+          "pct_positive": 9.82,
+          "total": 112
         }
       }
     },
@@ -233,5 +233,5 @@
     },
     "as_of": "2026-05-21"
   },
-  "generated_at": "2026-05-21T17:37:16Z"
+  "generated_at": "2026-05-21T17:58:57Z"
 }
