@@ -103,10 +103,10 @@
       "start": "2026-05-15",
       "end": "2026-05-21",
       "all": {
-        "net_score": -11.82,
-        "pct_negative": 18.67,
-        "pct_positive": 6.84,
-        "total": 2309
+        "net_score": -12.24,
+        "pct_negative": 19.14,
+        "pct_positive": 6.9,
+        "total": 2362
       },
       "by_group": {
         "CBS News": {
@@ -140,10 +140,10 @@
           "total": 149
         },
         "New York Times": {
-          "net_score": -7.34,
-          "pct_negative": 11.3,
-          "pct_positive": 3.95,
-          "total": 177
+          "net_score": -12.61,
+          "pct_negative": 17.83,
+          "pct_positive": 5.22,
+          "total": 230
         },
         "NPR": {
           "net_score": -8.96,
@@ -169,10 +169,10 @@
       "start": "2026-05-08",
       "end": "2026-05-14",
       "all": {
-        "net_score": -11.16,
-        "pct_negative": 17.05,
-        "pct_positive": 5.88,
-        "total": 2687
+        "net_score": -11.55,
+        "pct_negative": 17.5,
+        "pct_positive": 5.95,
+        "total": 2788
       },
       "by_group": {
         "CBS News": {
@@ -206,10 +206,10 @@
           "total": 263
         },
         "New York Times": {
-          "net_score": -20.31,
-          "pct_negative": 23.44,
-          "pct_positive": 3.12,
-          "total": 64
+          "net_score": -21.21,
+          "pct_negative": 27.27,
+          "pct_positive": 6.06,
+          "total": 165
         },
         "NPR": {
           "net_score": -12.98,
@@ -233,5 +233,5 @@
     },
     "as_of": "2026-05-21"
   },
-  "generated_at": "2026-05-21T17:58:57Z"
+  "generated_at": "2026-05-22T01:01:26Z"
 }
