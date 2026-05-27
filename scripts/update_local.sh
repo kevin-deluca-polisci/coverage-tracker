@@ -128,20 +128,52 @@ else
   echo "[1/5] TV: skipped (--no-tv)"
 fi
 
-# ---- 2) Headlines: scrape ---------------------------------------------
+# ---- 2) Headlines: scrape (Media Cloud + GDELT + NYT API) -------------
+# Multi-source for resilience:
+#   - Media Cloud: still works fine for ~8 outlets; keep as a source
+#   - GDELT 2.0:   covers all 10 non-NYT outlets, replaces MC where MC has
+#                  outages (NYT, ABC, Bloomberg). No API key needed.
+#   - NYT API:     for NYT only — cleaner + more complete than MC or GDELT
+#                  for that outlet. Requires NYT_API_KEY env var.
+# All three scripts write to $HEADLINES_MASTER with URL-based dedup, so
+# duplicate articles across sources are collapsed automatically.
 
 if [[ "$DO_NEWS" -eq 1 ]]; then
   echo ""
-  echo "[2/5] Headlines: scrape from Media Cloud..."
+  echo "[2/5] Headlines: scrape (Media Cloud + GDELT + NYT API)..."
   # If no explicit dates, default to last 14 days
   if [[ -z "$START" || -z "$END" ]]; then
     END="$(date +%Y-%m-%d)"
     START="$(date -v-14d +%Y-%m-%d 2>/dev/null || date -d "14 days ago" +%Y-%m-%d)"
   fi
+
+  # 2a — Media Cloud (still useful for outlets where it works)
+  echo "  → Media Cloud..."
   "$PY" "$PIPE/scrape_mediacloud_news.py" \
     --start-date "$START" --end-date "$END" \
     --output-dir "$MC_OUT_DIR" \
-    --master-csv "$HEADLINES_MASTER"
+    --master-csv "$HEADLINES_MASTER" || \
+    echo "    [warning: Media Cloud scrape failed, continuing with other sources]"
+
+  # 2b — GDELT for the 10 non-NYT outlets
+  echo "  → GDELT (10 outlets)..."
+  "$PY" "$PIPE/scrape_gdelt.py" \
+    --start-date "$START" --end-date "$END" \
+    --master-csv "$HEADLINES_MASTER" \
+    --delay 8.0 || \
+    echo "    [warning: GDELT scrape failed, continuing]"
+
+  # 2c — NYT Article Search API
+  if [[ -n "${NYT_API_KEY:-}" ]]; then
+    echo "  → NYT Article Search API..."
+    "$PY" "$PIPE/scrape_nyt_api.py" \
+      --start-date "$START" --end-date "$END" \
+      --master-csv "$HEADLINES_MASTER" \
+      --delay 0.5 || \
+      echo "    [warning: NYT API scrape failed, continuing]"
+  else
+    echo "  → NYT API: SKIPPED (NYT_API_KEY env var not set)"
+  fi
 
   # ---- 3) Headlines: classify -----------------------------------------
   echo ""

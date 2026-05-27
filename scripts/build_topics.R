@@ -86,9 +86,11 @@ if (is.null(topics) || length(topics) == 0) {
   stop("topics.yaml has no topics defined.")
 }
 
-# Build one regex per topic: \b(kw1|kw2|...)\b, case-insensitive
+# Build one regex per topic: \b(kw1|kw2|...)\b, case-insensitive.
+# Use perl=TRUE so the metachar-escape gsub doesn't choke on `{}` inside the
+# character class (TRE, the default engine, treats those as quantifier syntax).
 build_pattern <- function(keywords) {
-  esc <- gsub('([\\^$.|?*+()\\[\\]{}])', '\\\\\\1', keywords)
+  esc <- gsub("([][\\\\.|^$?*+(){}])", "\\\\\\1", keywords, perl = TRUE)
   paste0("(?i)\\b(", paste(esc, collapse = "|"), ")\\b")
 }
 topic_patterns <- setNames(

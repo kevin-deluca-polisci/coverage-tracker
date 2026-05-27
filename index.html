@@ -275,6 +275,13 @@ header .meta { color: #999; margin: 0; font-size: 12px; font-family: 'IBM Plex M
   color: #333;
   font-size: 15px;
 }
+.methodology ul {
+  margin: 0 0 14px 24px;
+  padding: 0;
+}
+.methodology ul li {
+  margin-bottom: 6px;
+}
 .methodology h2 {
   font-family: 'IBM Plex Serif', serif;
   font-weight: 500;
@@ -464,7 +471,12 @@ footer a { color: #888; }
 
   <h3>Networks and outlets covered</h3>
   <p><strong>Broadcast and cable:</strong> CBS, CNN, Fox News, ABC, NBC, and MSNBC/MSNow. Data runs from January 2025 to the present. We include national broadcast and cable news programs only — no local affiliates or regional newscasts.</p>
-  <p><strong>Digital news:</strong> Reuters, Fox News, CBS News, Bloomberg, CNN, ABC News, USA Today, New York Times, NBC News, Los Angeles Times, and NPR. Headlines are collected via the <a href="https://search.mediacloud.org" target="_blank" rel="noopener">Media Cloud API</a>.</p>
+  <p><strong>Digital news:</strong> Reuters, Fox News, CBS News, Bloomberg, CNN, ABC News, USA Today, New York Times, NBC News, Los Angeles Times, and NPR. Headlines are collected from three complementary sources and deduplicated by article URL:</p>
+  <ul>
+    <li><a href="https://search.mediacloud.org" target="_blank" rel="noopener">Media Cloud</a> — historical and ongoing coverage where the indexer is reliable.</li>
+    <li><a href="https://www.gdeltproject.org" target="_blank" rel="noopener">GDELT 2.0</a> Doc API — covers all 10 non-NYT outlets and serves as the primary source going forward.</li>
+    <li><a href="https://developer.nytimes.com/docs/articlesearch-product/1/overview" target="_blank" rel="noopener">NYT Article Search API</a> — for New York Times articles, used both for ongoing collection and to backfill Media Cloud's degraded NYT coverage from August 2025 onward.</li>
+  </ul>
 
   <h3>Data access</h3>
   <p>The weekly aggregated CSVs that power this page are released under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</p>

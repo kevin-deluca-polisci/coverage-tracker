@@ -54,16 +54,21 @@ The first time the pipeline runs, `transformers` will download the DEBATE model 
 Rscript -e 'pkgs <- c("dplyr","lubridate","stringr","yaml"); install.packages(pkgs[!pkgs %in% rownames(installed.packages())], repos="https://cloud.r-project.org")'
 ```
 
-### 4. Set your Media Cloud API key
+### 4. Set your API keys
 
-Add to `~/.zshrc` (default shell on modern macOS) — or `~/.bashrc` if you use bash:
+The headlines pipeline pulls from three sources. You'll want at least Media Cloud and NYT keys (GDELT requires no key).
 
 ```bash
+# Media Cloud (https://search.mediacloud.org → sign in → API key)
 echo 'export MEDIACLOUD_API_KEY="paste-your-key-here"' >> ~/.zshrc
+# NYT (https://developer.nytimes.com → My Apps → enable Article Search API)
+echo 'export NYT_API_KEY="paste-your-nyt-key-here"' >> ~/.zshrc
 source ~/.zshrc
 ```
 
-Verify with `echo $MEDIACLOUD_API_KEY`. **Do not commit the key to the repo.**
+Verify with `echo $MEDIACLOUD_API_KEY` and `echo $NYT_API_KEY`. **Do not commit either key to the repo.**
+
+If you only set one, the pipeline will skip the source with the missing key and continue with whatever's available. GDELT runs regardless.
 
 ### 5. Verify the setup runs
 
@@ -159,6 +164,39 @@ So as long as the canonical files are at the right paths, **the pipeline always 
 ### Catch-up classification (built in)
 
 Step 1 of `update_local.sh` runs `scrape_all_networks.py --analysis-only` *before* the regular `--update` scrape. This catches and classifies any shows that previously got scraped but never made it into the chunks file (which can happen if a run crashed mid-classification or the chunks file got restored from backup). The catch-up step is fast when there's nothing stranded — it just reads per-network CSVs, compares identifiers against the chunks file, and exits — but it rescues your data when there is. You don't need to run anything manually; it's part of every TV refresh.
+
+### Headlines: three sources, one master CSV
+
+Step 2 of `update_local.sh` collects digital headlines from three independent sources, each writing into `data/raw/mediacloud_data/trump_headlines_master.csv` with URL-based dedup:
+
+1. **Media Cloud** (`scrape_mediacloud_news.py`) — still works well for most outlets; primary historical source.
+2. **GDELT 2.0** (`scrape_gdelt.py`) — covers all 10 non-NYT outlets; no API key needed; immune to outlet-by-outlet blocks. Used to backfill and supplement Media Cloud where it has gaps (NYT mid-2025, ABC and Bloomberg early 2026).
+3. **NYT Article Search API** (`scrape_nyt_api.py`) — for NYT only; cleaner and more complete than the other two for that outlet. Requires `NYT_API_KEY`.
+
+All three run in sequence every refresh. If any one fails (network error, API outage), the others still complete and the pipeline continues — there's a per-source warning but no hard fail.
+
+### One-time backfill for the Media Cloud gap
+
+After the new sources are wired up, run these once to fill in historical coverage that Media Cloud missed:
+
+```bash
+# GDELT — refetch all 10 outlets for the historical window
+python3 scripts/pipeline/scrape_gdelt.py \
+    --start-date 2025-01-01 --end-date "$(date +%Y-%m-%d)" \
+    --master-csv data/raw/mediacloud_data/trump_headlines_master.csv \
+    --delay 2.0
+
+# NYT — refetch NYT for the Media Cloud gap
+python3 scripts/pipeline/scrape_nyt_api.py \
+    --start-date 2025-08-01 --end-date "$(date +%Y-%m-%d)" \
+    --master-csv data/raw/mediacloud_data/trump_headlines_master.csv \
+    --delay 0.5
+
+# Then classify everything new and rebuild aggregates
+./scripts/update_local.sh --no-tv
+```
+
+Expected backfill runtime: ~30–60 minutes of API calls + ~30–60 minutes of classifier time depending on how many new headlines come through. After this, ongoing collection happens automatically as part of every `./scripts/update_local.sh` run.
 
 ## How long does it actually take?
 
