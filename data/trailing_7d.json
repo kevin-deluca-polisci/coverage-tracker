@@ -1,112 +1,112 @@
 {
   "tv": {
     "current": {
-      "start": "2026-05-22",
-      "end": "2026-05-28",
+      "start": "2026-05-23",
+      "end": "2026-05-29",
       "all": {
-        "net_score": -17.26,
-        "pct_negative": 30.55,
-        "pct_positive": 13.29,
-        "total": 3319
+        "net_score": -16.78,
+        "pct_negative": 29.95,
+        "pct_positive": 13.17,
+        "total": 3522
       },
       "by_group": {
         "ABC": {
-          "net_score": -12.71,
-          "pct_negative": 27.12,
-          "pct_positive": 14.41,
-          "total": 236
+          "net_score": -14.86,
+          "pct_negative": 28.11,
+          "pct_positive": 13.25,
+          "total": 249
         },
         "CBS": {
-          "net_score": 0.87,
-          "pct_negative": 14.78,
-          "pct_positive": 15.65,
-          "total": 115
+          "net_score": 5.13,
+          "pct_negative": 9.4,
+          "pct_positive": 14.53,
+          "total": 117
         },
         "CNN": {
-          "net_score": -18.8,
-          "pct_negative": 30.84,
-          "pct_positive": 12.05,
-          "total": 963
+          "net_score": -17.03,
+          "pct_negative": 29.63,
+          "pct_positive": 12.6,
+          "total": 1016
         },
         "Fox": {
-          "net_score": 0.28,
-          "pct_negative": 19.49,
-          "pct_positive": 19.77,
-          "total": 703
+          "net_score": -0.88,
+          "pct_negative": 19.91,
+          "pct_positive": 19.03,
+          "total": 678
         },
         "MSNBC/MSNow": {
-          "net_score": -29.23,
-          "pct_negative": 39.22,
-          "pct_positive": 9.98,
-          "total": 1252
+          "net_score": -27.32,
+          "pct_negative": 37.84,
+          "pct_positive": 10.52,
+          "total": 1398
         },
         "NBC": {
-          "net_score": 2,
-          "pct_negative": 16,
-          "pct_positive": 18,
-          "total": 50
+          "net_score": 1.56,
+          "pct_negative": 14.06,
+          "pct_positive": 15.62,
+          "total": 64
         }
       }
     },
     "prior": {
-      "start": "2026-05-15",
-      "end": "2026-05-21",
+      "start": "2026-05-16",
+      "end": "2026-05-22",
       "all": {
-        "net_score": -19.27,
-        "pct_negative": 31.35,
-        "pct_positive": 12.08,
-        "total": 5107
+        "net_score": -22.2,
+        "pct_negative": 33.68,
+        "pct_positive": 11.48,
+        "total": 4756
       },
       "by_group": {
         "ABC": {
-          "net_score": -13.91,
-          "pct_negative": 23.67,
-          "pct_positive": 9.76,
-          "total": 338
+          "net_score": -12.88,
+          "pct_negative": 23.31,
+          "pct_positive": 10.43,
+          "total": 326
         },
         "CBS": {
-          "net_score": -10.24,
-          "pct_negative": 22.05,
-          "pct_positive": 11.81,
-          "total": 127
+          "net_score": -18.64,
+          "pct_negative": 28.81,
+          "pct_positive": 10.17,
+          "total": 118
         },
         "CNN": {
-          "net_score": -19.19,
-          "pct_negative": 29.6,
-          "pct_positive": 10.42,
-          "total": 1277
+          "net_score": -21.48,
+          "pct_negative": 32.48,
+          "pct_positive": 11,
+          "total": 1136
         },
         "Fox": {
-          "net_score": 5.38,
-          "pct_negative": 16.45,
-          "pct_positive": 21.83,
-          "total": 985
+          "net_score": 1.8,
+          "pct_negative": 18.51,
+          "pct_positive": 20.31,
+          "total": 832
         },
         "MSNBC/MSNow": {
-          "net_score": -31.72,
-          "pct_negative": 40.34,
-          "pct_positive": 8.62,
-          "total": 2216
+          "net_score": -33.52,
+          "pct_negative": 41.56,
+          "pct_positive": 8.05,
+          "total": 2187
         },
         "NBC": {
-          "net_score": -17.68,
-          "pct_negative": 35.98,
-          "pct_positive": 18.29,
-          "total": 164
+          "net_score": -19.11,
+          "pct_negative": 38.22,
+          "pct_positive": 19.11,
+          "total": 157
         }
       }
     },
-    "as_of": "2026-05-28"
+    "as_of": "2026-05-29"
   },
   "news": {
     "current": {
-      "start": "2026-05-22",
-      "end": "2026-05-28",
+      "start": "2026-05-23",
+      "end": "2026-05-29",
       "all": {
-        "net_score": -11.47,
-        "pct_negative": 18.81,
-        "pct_positive": 7.34,
-        "total": 1770
+        "net_score": -13.3,
+        "pct_negative": 20.69,
+        "pct_positive": 7.39,
+        "total": 1880
       },
       "by_group": {
         "Bloomberg": {
@@ -116,69 +116,69 @@
           "total": 1
         },
         "CBS News": {
-          "net_score": -1.65,
-          "pct_negative": 13.22,
-          "pct_positive": 11.57,
-          "total": 242
+          "net_score": -2.28,
+          "pct_negative": 12.55,
+          "pct_positive": 10.27,
+          "total": 263
         },
         "CNN": {
-          "net_score": -29.34,
-          "pct_negative": 30.58,
-          "pct_positive": 1.24,
-          "total": 242
+          "net_score": -32.43,
+          "pct_negative": 33.59,
+          "pct_positive": 1.16,
+          "total": 259
         },
         "Fox News": {
-          "net_score": -12.5,
-          "pct_negative": 20.5,
-          "pct_positive": 8,
-          "total": 200
+          "net_score": -12.68,
+          "pct_negative": 21.95,
+          "pct_positive": 9.27,
+          "total": 205
         },
         "Los Angeles Times": {
-          "net_score": -21.28,
-          "pct_negative": 26.95,
-          "pct_positive": 5.67,
-          "total": 141
+          "net_score": -25,
+          "pct_negative": 29.55,
+          "pct_positive": 4.55,
+          "total": 132
         },
         "NBC News": {
-          "net_score": -5.45,
-          "pct_negative": 14.55,
-          "pct_positive": 9.09,
-          "total": 110
+          "net_score": -8.46,
+          "pct_negative": 17.69,
+          "pct_positive": 9.23,
+          "total": 130
         },
         "New York Times": {
-          "net_score": -15.03,
-          "pct_negative": 20.23,
-          "pct_positive": 5.2,
-          "total": 173
+          "net_score": -16.38,
+          "pct_negative": 22.03,
+          "pct_positive": 5.65,
+          "total": 177
         },
         "NPR": {
-          "net_score": -23.08,
-          "pct_negative": 26.5,
-          "pct_positive": 3.42,
-          "total": 117
+          "net_score": -23.42,
+          "pct_negative": 27.93,
+          "pct_positive": 4.5,
+          "total": 111
         },
         "Reuters": {
-          "net_score": -0.24,
-          "pct_negative": 10.76,
-          "pct_positive": 10.51,
-          "total": 409
+          "net_score": -4.49,
+          "pct_negative": 14.74,
+          "pct_positive": 10.26,
+          "total": 468
         },
         "USA Today": {
-          "net_score": -8.89,
-          "pct_negative": 15.56,
-          "pct_positive": 6.67,
-          "total": 135
+          "net_score": -9.7,
+          "pct_negative": 16.42,
+          "pct_positive": 6.72,
+          "total": 134
         }
       }
     },
     "prior": {
-      "start": "2026-05-15",
-      "end": "2026-05-21",
+      "start": "2026-05-16",
+      "end": "2026-05-22",
       "all": {
-        "net_score": -12.34,
-        "pct_negative": 19.62,
-        "pct_positive": 7.29,
-        "total": 2813
+        "net_score": -12.59,
+        "pct_negative": 19.47,
+        "pct_positive": 6.88,
+        "total": 2717
       },
       "by_group": {
         "Bloomberg": {
@@ -188,62 +188,62 @@
           "total": 7
         },
         "CBS News": {
-          "net_score": -12.26,
+          "net_score": -13.52,
           "pct_negative": 17.92,
-          "pct_positive": 5.66,
+          "pct_positive": 4.4,
           "total": 318
         },
         "CNN": {
-          "net_score": -17.28,
-          "pct_negative": 22.96,
-          "pct_positive": 5.68,
-          "total": 405
+          "net_score": -17.59,
+          "pct_negative": 23.1,
+          "pct_positive": 5.51,
+          "total": 381
         },
         "Fox News": {
-          "net_score": -8.3,
-          "pct_negative": 19.86,
-          "pct_positive": 11.55,
-          "total": 277
+          "net_score": -10.56,
+          "pct_negative": 21.13,
+          "pct_positive": 10.56,
+          "total": 284
         },
         "Los Angeles Times": {
-          "net_score": -19.19,
-          "pct_negative": 24.42,
-          "pct_positive": 5.23,
-          "total": 172
+          "net_score": -19.44,
+          "pct_negative": 24.44,
+          "pct_positive": 5,
+          "total": 180
         },
         "NBC News": {
-          "net_score": -13.61,
-          "pct_negative": 21.3,
-          "pct_positive": 7.69,
-          "total": 169
+          "net_score": -12.26,
+          "pct_negative": 19.35,
+          "pct_positive": 7.1,
+          "total": 155
         },
         "New York Times": {
-          "net_score": -13.14,
-          "pct_negative": 19.87,
-          "pct_positive": 6.73,
-          "total": 312
+          "net_score": -12.91,
+          "pct_negative": 18.87,
+          "pct_positive": 5.96,
+          "total": 302
         },
         "NPR": {
-          "net_score": -10.78,
-          "pct_negative": 19.16,
-          "pct_positive": 8.38,
-          "total": 167
+          "net_score": -11.52,
+          "pct_negative": 20,
+          "pct_positive": 8.48,
+          "total": 165
         },
         "Reuters": {
-          "net_score": -8.06,
-          "pct_negative": 15.87,
-          "pct_positive": 7.81,
-          "total": 794
+          "net_score": -7.45,
+          "pct_negative": 15.45,
+          "pct_positive": 8,
+          "total": 725
         },
         "USA Today": {
-          "net_score": -19.27,
-          "pct_negative": 24.48,
-          "pct_positive": 5.21,
-          "total": 192
+          "net_score": -18.5,
+          "pct_negative": 23,
+          "pct_positive": 4.5,
+          "total": 200
         }
       }
     },
-    "as_of": "2026-05-28"
+    "as_of": "2026-05-29"
   },
-  "generated_at": "2026-05-28T15:45:50Z"
+  "generated_at": "2026-05-29T18:00:29Z"
 }
