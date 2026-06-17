@@ -53,7 +53,7 @@ Raw transcript chunks and analyzed headline CSVs are **not** tracked in this rep
 
 **Broadcast and cable:** CBS, CNN, Fox News, ABC, NBC, MSNBC/MSNow. National programs only — no local affiliates.
 
-**Digital news:** Reuters, Fox News, CBS News, Bloomberg, CNN, ABC News, USA Today, New York Times, NBC News, Los Angeles Times, NPR.
+**Digital news:** Reuters, Fox News, CBS News, Bloomberg, CNN, ABC News, USA Today, New York Times, NBC News, Los Angeles Times, NPR, Washington Post, Politico.
 
 ## Methodology summary
 

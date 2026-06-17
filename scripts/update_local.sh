@@ -25,6 +25,31 @@
 
 set -euo pipefail
 
+# ---- Status tracking + final status line ------------------------------
+# Track which stage we're currently in so an interrupted/failed run leaves a
+# clear marker in the log instead of just trailing off into silence. Last
+# audit found that several recent runs simply stopped mid-stage with no way
+# to tell what happened.
+CURRENT_STAGE="starting"
+PIPELINE_START_TS=$(date +%s)
+
+_print_status() {
+  local exit_code=$?
+  local elapsed=$(( $(date +%s) - PIPELINE_START_TS ))
+  local mins=$(( elapsed / 60 ))
+  local secs=$(( elapsed % 60 ))
+  echo ""
+  echo "============================================================"
+  if [[ "$exit_code" -eq 0 ]]; then
+    echo "✓ PIPELINE COMPLETE — finished cleanly in ${mins}m ${secs}s"
+  else
+    echo "✗ PIPELINE FAILED — exit ${exit_code} at stage: ${CURRENT_STAGE}"
+    echo "                    after ${mins}m ${secs}s"
+  fi
+  echo "============================================================"
+}
+trap _print_status EXIT
+
 # ---- Resolve paths ----------------------------------------------------
 REPO_ROOT="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
 cd "$REPO_ROOT"
@@ -96,6 +121,7 @@ fi
 
 if [[ "$DO_TV" -eq 1 ]]; then
   echo ""
+  CURRENT_STAGE="1/5 TV catch-up + scrape + classify"
   echo "[1/5] TV: catch-up + scrape + classify..."
 
   # ---- Catch-up analysis pass --------------------------------------
@@ -140,6 +166,7 @@ fi
 
 if [[ "$DO_NEWS" -eq 1 ]]; then
   echo ""
+  CURRENT_STAGE="2/5 Headlines scrape (MC + GDELT + NYT)"
   echo "[2/5] Headlines: scrape (Media Cloud + GDELT + NYT API)..."
   # If no explicit dates, default to last 14 days
   if [[ -z "$START" || -z "$END" ]]; then
@@ -163,20 +190,47 @@ if [[ "$DO_NEWS" -eq 1 ]]; then
     --delay 8.0 || \
     echo "    [warning: GDELT scrape failed, continuing]"
 
-  # 2c — NYT Article Search API
-  if [[ -n "${NYT_API_KEY:-}" ]]; then
-    echo "  → NYT Article Search API..."
-    "$PY" "$PIPE/scrape_nyt_api.py" \
-      --start-date "$START" --end-date "$END" \
+  # 2c — RSS feeds for ABC News, Bloomberg, Politico, Washington Post
+  # These outlets are under-covered or missing from MC/GDELT:
+  #   - ABC News: MC dropped them in March 2026, GDELT doesn't index them
+  #   - Bloomberg: MC failing since April 2026
+  #   - Politico: MC only captured 2 articles total over the dashboard's life
+  #   - Washington Post: never made it to the dashboard despite being in MC config
+  # RSS gets the recent items per feed; for high-volume outlets some articles
+  # may roll off RSS between runs. Documented in the methodology.
+  RSS_CONFIG="$PIPE/rss_feeds.yaml"
+  if [[ -f "$RSS_CONFIG" ]]; then
+    echo "  → RSS (ABC News, Bloomberg, Politico, Washington Post)..."
+    "$PY" "$PIPE/scrape_rss.py" \
+      --config "$RSS_CONFIG" \
       --master-csv "$HEADLINES_MASTER" \
-      --delay 0.5 || \
-      echo "    [warning: NYT API scrape failed, continuing]"
+      --delay 2.0 || \
+      echo "    [warning: RSS scrape failed, continuing]"
+  fi
+
+  # 2d — NYT Archive API
+  # CHANGED from Article Search → Archive: Archive returns ~500-800 Trump
+  # headlines/month while Article Search was finding only ~400/month due to
+  # rate-limiting that cut off pagination. One API call per month, no
+  # pagination, much more reliable. Covers current + previous month each run
+  # to handle month-boundary rollover.
+  if [[ -n "${NYT_API_KEY:-}" ]]; then
+    echo "  → NYT Archive API..."
+    # Default window: last 2 months (current + previous), in YYYY-MM format
+    CUR_MONTH="$(date +%Y-%m)"
+    PREV_MONTH="$(date -v-1m +%Y-%m 2>/dev/null || date -d '1 month ago' +%Y-%m)"
+    "$PY" "$PIPE/scrape_nyt_archive.py" \
+      --start-month "$PREV_MONTH" --end-month "$CUR_MONTH" \
+      --master-csv "$HEADLINES_MASTER" \
+      --delay 1.0 || \
+      echo "    [warning: NYT Archive scrape failed, continuing]"
   else
-    echo "  → NYT API: SKIPPED (NYT_API_KEY env var not set)"
+    echo "  → NYT Archive: SKIPPED (NYT_API_KEY env var not set)"
   fi
 
   # ---- 3) Headlines: classify -----------------------------------------
   echo ""
+  CURRENT_STAGE="3/5 Headlines classify"
   echo "[3/5] Headlines: classify..."
   # run_headline_analysis.py reads its own --output file to dedupe by
   # (title, date) and appends only new rows. Safe to point at canonical path.
@@ -202,6 +256,7 @@ fi
 
 # ---- 4) Build weekly aggregates ---------------------------------------
 echo ""
+CURRENT_STAGE="4/5 Building weekly aggregates"
 echo "[4/5] Building weekly aggregates..."
 "$RS" "$REPO_ROOT/scripts/build_aggregates.R" \
   --chunks    "$CHUNKS_FILE" \
@@ -210,6 +265,7 @@ echo "[4/5] Building weekly aggregates..."
 
 # ---- 5) Build topic counts --------------------------------------------
 echo ""
+CURRENT_STAGE="5/5 Building topics"
 echo "[5/5] Building topic counts..."
 "$RS" "$REPO_ROOT/scripts/build_topics.R" \
   --chunks    "$CHUNKS_FILE" \
@@ -218,6 +274,7 @@ echo "[5/5] Building topic counts..."
   --out-dir   "$DATA_OUT"
 
 # ---- Commit + push ----------------------------------------------------
+CURRENT_STAGE="commit + push"
 echo ""
 echo "Changes in data/:"
 git -C "$REPO_ROOT" status --short data/ || true

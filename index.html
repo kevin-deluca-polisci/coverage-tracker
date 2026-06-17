@@ -471,11 +471,12 @@ footer a { color: #888; }
 
   <h3>Networks and outlets covered</h3>
   <p><strong>Broadcast and cable:</strong> CBS, CNN, Fox News, ABC, NBC, and MSNBC/MSNow. Data runs from January 2025 to the present. We include national broadcast and cable news programs only — no local affiliates or regional newscasts.</p>
-  <p><strong>Digital news:</strong> Reuters, Fox News, CBS News, Bloomberg, CNN, ABC News, USA Today, New York Times, NBC News, Los Angeles Times, and NPR. Headlines are collected from three complementary sources and deduplicated by article URL:</p>
+  <p><strong>Digital news:</strong> Reuters, Fox News, CBS News, Bloomberg, CNN, ABC News, USA Today, New York Times, NBC News, Los Angeles Times, NPR, Washington Post, and Politico. Headlines are collected from four complementary sources and deduplicated by article URL:</p>
   <ul>
-    <li><a href="https://search.mediacloud.org" target="_blank" rel="noopener">Media Cloud</a> — historical and ongoing coverage where the indexer is reliable.</li>
-    <li><a href="https://www.gdeltproject.org" target="_blank" rel="noopener">GDELT 2.0</a> Doc API — covers all 10 non-NYT outlets and serves as the primary source going forward.</li>
-    <li><a href="https://developer.nytimes.com/docs/articlesearch-product/1/overview" target="_blank" rel="noopener">NYT Article Search API</a> — for New York Times articles, used both for ongoing collection and to backfill Media Cloud's degraded NYT coverage from August 2025 onward.</li>
+    <li><a href="https://search.mediacloud.org" target="_blank" rel="noopener">Media Cloud</a> — primary historical source for Reuters, CBS News, CNN, Fox News, Los Angeles Times, NPR, NBC News, USA Today, and (through early 2026) ABC News and Bloomberg.</li>
+    <li><a href="https://www.gdeltproject.org" target="_blank" rel="noopener">GDELT 2.0</a> Doc API — supplements Media Cloud for Fox News, CBS News, Bloomberg, CNN, NBC News, Los Angeles Times, and NPR.</li>
+    <li><a href="https://developer.nytimes.com/docs/archive-product/1/overview" target="_blank" rel="noopener">NYT Archive API</a> — for New York Times articles, used for both historical backfill and ongoing collection.</li>
+    <li>Direct RSS feeds — for ABC News (Media Cloud coverage ended in March 2026), Bloomberg (Media Cloud coverage degraded in April 2026), Politico (Media Cloud captured only a handful of articles over the dashboard's history), and Washington Post (added June 2026). RSS surfaces the most recent articles per feed, so very high-volume periods may miss some items before the next polling cycle. These four outlets are noted with their primary source in the per-outlet documentation.</li>
   </ul>
 
   <h3>Data access</h3>
@@ -518,12 +519,15 @@ const OUTLET_COLORS = {
   "NBC News":         "#9b59b6",
   "Los Angeles Times":"#c0392b",
   "NPR":              "#e5a823",
+  "Washington Post":  "#8e44ad",
+  "Politico":         "#d35400",
   "All Outlets":      "#1a1a1a"
 };
 
 const TV_ORDER   = ["CBS","CNN","Fox","ABC","NBC","MSNBC/MSNow"];
 const NEWS_ORDER = ["Reuters","Fox News","CBS News","Bloomberg","CNN","ABC News",
-                    "USA Today","New York Times","NBC News","Los Angeles Times","NPR"];
+                    "USA Today","New York Times","NBC News","Los Angeles Times","NPR",
+                    "Washington Post","Politico"];
 
 // Topic colors. Falls back to a neutral gray if a new topic is added in
 // topics.yaml without an entry here.

@@ -103,14 +103,21 @@ def main():
     all_scores = []
     total_batches = (len(titles) + BATCH_SIZE - 1) // BATCH_SIZE
 
-    print(f"Classifying {len(titles):,} headlines in {total_batches} batches...")
+    import time as _time
+    t_start = _time.time()
+    print(f"Classifying {len(titles):,} headlines in {total_batches} batches...", flush=True)
     for i in range(0, len(titles), BATCH_SIZE):
         batch = titles[i:i+BATCH_SIZE]
         batch_num = i // BATCH_SIZE + 1
-        if batch_num % 10 == 0 or batch_num == 1:
-            print(f"  Batch {batch_num}/{total_batches} ({i:,}/{len(titles):,} headlines)")
+        if batch_num % 10 == 0 or batch_num == 1 or batch_num == total_batches:
+            elapsed = _time.time() - t_start
+            rate = batch_num / max(elapsed, 0.01)  # batches per second
+            eta_s = (total_batches - batch_num) / max(rate, 0.001)
+            print(f"  Batch {batch_num}/{total_batches} ({i:,}/{len(titles):,} headlines) "
+                  f"— elapsed {elapsed:.0f}s, ETA {eta_s:.0f}s", flush=True)
         scores = classify_headlines(batch, classifier)
         all_scores.extend(scores)
+    print(f"  Classification finished in {_time.time()-t_start:.1f}s", flush=True)
 
     df_new['debate_performance'] = all_scores
 

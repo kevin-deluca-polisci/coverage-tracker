@@ -123,7 +123,8 @@ SHOW_NETWORK_MAP <- c(
 )
 
 KEEP_OUTLETS <- c("Reuters","Fox News","CBS News","Bloomberg","CNN","ABC News",
-                  "USA Today","New York Times","NBC News","Los Angeles Times","NPR")
+                  "USA Today","New York Times","NBC News","Los Angeles Times","NPR",
+                  "Washington Post","Politico")
 
 # ---- Helpers ----------------------------------------------------------
 

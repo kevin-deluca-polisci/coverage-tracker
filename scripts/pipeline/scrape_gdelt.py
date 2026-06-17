@@ -59,17 +59,29 @@ import requests
 # specifically. If you add NYT here, you'll get redundant rows that dedup
 # will handle but it's wasted work.
 OUTLETS = {
-    "reuters.com":      "Reuters",
+    # Outlets that GDELT actually indexes well.
     "foxnews.com":      "Fox News",
     "cbsnews.com":      "CBS News",
     "bloomberg.com":    "Bloomberg",
     "cnn.com":          "CNN",
-    "abcnews.go.com":   "ABC News",
-    "usatoday.com":     "USA Today",
     "nbcnews.com":      "NBC News",
     "latimes.com":      "Los Angeles Times",
     "npr.org":          "NPR",
+
+    # NOTE: Reuters, ABC News, and USA Today have been REMOVED — empirical
+    # testing showed GDELT does not index these outlets at all. A `domainis:`
+    # query with no keyword filter returns an empty result, confirming the
+    # absence isn't query-syntax-related. Media Cloud covers all three with
+    # large historical archives (Reuters 64K+ headlines, ABC 15K+, USAT 15K+),
+    # so we rely on MC alone for these outlets. If GDELT adds coverage in the
+    # future, just add them back here.
 }
+
+# Per-outlet GDELT operator override. `domain:` does substring matching and
+# works for all currently-tracked outlets. Kept as a hook for future outlets
+# that need stricter `domainis:` exact-match (e.g. domains shared with other
+# sites like "un.org").
+OUTLET_OPERATOR = {}
 
 GDELT_URL    = "https://api.gdeltproject.org/api/v2/doc/doc"
 MAX_RECORDS  = 250    # GDELT hard cap per query
@@ -103,9 +115,10 @@ def normalize_url(url):
 def fetch_chunk(domain, start_dt, end_dt, session, retries=2):
     """One GDELT API call for a single domain + date range."""
     # NOTE: GDELT 2.0 uses `domain:` for URL host filtering, NOT `source:`.
-    # Some outlets accept `source:` as fuzzy match but cnn.com and
-    # abcnews.go.com reject it as "keyword too short/common".
-    query = f"trump domain:{domain}"
+    # Per-outlet override lives in OUTLET_OPERATOR for outlets that need
+    # the stricter `domainis:` exact-match (Reuters, ABC, USA Today).
+    operator = OUTLET_OPERATOR.get(domain, "domain")
+    query = f"trump {operator}:{domain}"
     params = {
         "query": query,
         "mode": "ArtList",

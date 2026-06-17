@@ -1,0 +1,54 @@
+# RSS feed config for outlets that Media Cloud and GDELT under-cover or miss
+# entirely. Polled as part of update_local.sh — NOT a separate scheduled job,
+# so there's nothing to remember to keep running.
+#
+# Each entry has:
+#   name:  display name used in the dashboard (must match dashboard's outlet
+#          list exactly for color/label mapping)
+#   domain: canonical domain stored in the master CSV's media_url column
+#   feeds: list of RSS feed URLs. We poll all of them and merge with URL dedup.
+#
+# Coverage rationale per outlet:
+#   - ABC News:        Media Cloud broke for them in March 2026 (0 articles
+#                      since), GDELT doesn't index them. RSS is the only
+#                      working source we have.
+#   - Bloomberg:       Media Cloud dropped to ~17/month from ~1300/month in
+#                      April 2026. GDELT catches ~10/run. Adding RSS for
+#                      better completeness.
+#   - Politico:        Media Cloud's matcher captured only 2 articles total
+#                      over the entire history of the dashboard. Politico's
+#                      RSS works fine.
+#   - Washington Post: Was in MC TARGET_OUTLETS but never produced data on
+#                      our dashboard. Adding RSS gets us a sixth major outlet.
+
+outlets:
+  - name: ABC News
+    domain: abcnews.go.com
+    feeds:
+      - https://abcnews.go.com/abcnews/topstories
+      - https://abcnews.go.com/abcnews/politicsheadlines
+      - https://abcnews.go.com/abcnews/usheadlines
+
+  - name: Bloomberg
+    domain: bloomberg.com
+    feeds:
+      - https://feeds.bloomberg.com/politics/news.rss
+      - https://feeds.bloomberg.com/markets/news.rss
+      - https://feeds.bloomberg.com/news.rss
+
+  - name: Politico
+    domain: politico.com
+    feeds:
+      - https://rss.politico.com/politics-news.xml
+      - https://rss.politico.com/congress.xml
+      - https://rss.politico.com/playbook.xml
+      - https://rss.politico.com/healthcare.xml
+      - https://rss.politico.com/defense.xml
+
+  - name: Washington Post
+    domain: washingtonpost.com
+    feeds:
+      - https://feeds.washingtonpost.com/rss/politics
+      - https://feeds.washingtonpost.com/rss/national
+      - https://feeds.washingtonpost.com/rss/world
+      - https://feeds.washingtonpost.com/rss/opinions

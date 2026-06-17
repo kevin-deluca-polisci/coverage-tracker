@@ -282,7 +282,6 @@ class NetworkTranscriptScraper:
     def _merge_and_save(self, network_key: str, new_df: pd.DataFrame):
         net     = NETWORKS[network_key]
         csv     = os.path.join(self.output_dir, f"all_{net['dataset_name']}_shows_dataset.csv")
-        excel   = os.path.join(self.output_dir, f"all_{net['dataset_name']}_shows_dataset.xlsx")
         summary = os.path.join(self.output_dir, f"all_{net['dataset_name']}_shows_summary.csv")
 
         if os.path.exists(csv):
@@ -293,10 +292,10 @@ class NetworkTranscriptScraper:
             combined = new_df
 
         combined.to_csv(csv, index=False, encoding="utf-8")
-        try:
-            combined.to_excel(excel, index=False, engine="openpyxl")
-        except Exception as e:
-            logger.warning(f"Excel save failed: {e}")
+        # XLSX writing was removed — Excel's 32,767-char cell limit caused
+        # ~1,200 UserWarnings per run (transcripts are routinely >50K chars)
+        # and the .xlsx files were never read by anything downstream. The
+        # CSV above is the canonical per-network record.
         combined.drop(columns=["transcript"], errors="ignore").to_csv(summary, index=False)
 
         with_t = combined["has_transcript"].astype(str).str.lower().eq("true").sum()
@@ -499,8 +498,16 @@ def run_analysis(output_dir: str, new_identifiers: Optional[Set[str]] = None,
     os.makedirs(chunk_dir, exist_ok=True)
     chunk_paths: List[str] = []
 
-    print(f"\n  Running classifier in {num_groups} group(s)...")
+    # IMPORTANT: tqdm progress bars use \r and get swallowed by `tee`. Use
+    # explicit print() with flush=True so progress survives shell piping and
+    # the user can SEE that classification is making progress (otherwise it
+    # looks like the script has hung for hours of silent MPS work).
+    import time as _time
+    t_classify_start = _time.time()
+    print(f"\n  Running classifier in {num_groups} group(s) "
+          f"({n:,} chunks, batch_size={batch_size})...", flush=True)
     for i in range(num_groups):
+        t_group = _time.time()
         start = i * chunk_group_size
         end   = min((i + 1) * chunk_group_size, n)
         chunk = df_filtered.iloc[start:end].copy().reset_index(drop=True)
@@ -521,7 +528,18 @@ def run_analysis(output_dir: str, new_identifiers: Optional[Set[str]] = None,
         fpath = os.path.join(chunk_dir, f"analysis_chunk_{i+1}.csv")
         chunk.to_csv(fpath, index=False)
         chunk_paths.append(fpath)
-        print(f"  Group {i+1}/{num_groups} done")
+
+        # Per-group line with timing + ETA. Flushed so it appears immediately.
+        elapsed = _time.time() - t_group
+        total_elapsed = _time.time() - t_classify_start
+        avg_per_group = total_elapsed / (i + 1)
+        eta_min = avg_per_group * (num_groups - i - 1) / 60
+        print(f"  Group {i+1}/{num_groups} done in {elapsed:.1f}s "
+              f"(total {total_elapsed/60:.1f} min, ETA ≈ {eta_min:.1f} min)",
+              flush=True)
+
+    print(f"  Classification complete: {n:,} chunks in {(_time.time()-t_classify_start)/60:.1f} min",
+          flush=True)
 
     # -- Merge and append to cumulative chunks CSV
     new_results = pd.concat((pd.read_csv(p) for p in chunk_paths), ignore_index=True)

@@ -69,8 +69,14 @@ def normalize_url(url):
 # --------------------------------------------------------------------------
 # NYT API call
 # --------------------------------------------------------------------------
-def fetch_page(start_date, end_date, page, api_key, session, retries=3):
-    """Fetch one page of NYT search results."""
+def fetch_page(start_date, end_date, page, api_key, session, retries=2):
+    """Fetch one page of NYT search results.
+
+    `retries` is now 2 (was 3) and the 429-wait isn't double-counted as a
+    retry attempt. Old behavior could burn 4+ minutes hammering rate-limit
+    walls. New behavior: at most ~3 minutes per page, then give up and let
+    the caller move on (the URL dedup means missed pages are safely retried
+    next run)."""
     params = {
         "q":          "Trump",
         "begin_date": start_date.strftime("%Y%m%d"),
@@ -80,6 +86,8 @@ def fetch_page(start_date, end_date, page, api_key, session, retries=3):
         "page":       page,
         "api-key":    api_key,
     }
+    rate_limit_hits = 0
+    MAX_RATE_LIMIT_WAITS = 2  # at most 2 × 60s = 2 min on rate limits
     for attempt in range(retries + 1):
         try:
             r = session.get(NYT_URL, params=params,
@@ -87,15 +95,21 @@ def fetch_page(start_date, end_date, page, api_key, session, retries=3):
             if r.status_code == 200:
                 return r.json().get("response", {}).get("docs", []) or []
             elif r.status_code == 429:
+                rate_limit_hits += 1
+                if rate_limit_hits > MAX_RATE_LIMIT_WAITS:
+                    print(f"    [hit rate limit {rate_limit_hits}x — giving up on page {page}]",
+                          file=sys.stderr, flush=True)
+                    return []
                 wait = 60
-                print(f"    [rate-limited, waiting {wait}s]", file=sys.stderr)
+                print(f"    [rate-limited ({rate_limit_hits}/{MAX_RATE_LIMIT_WAITS}), waiting {wait}s]",
+                      file=sys.stderr, flush=True)
                 time.sleep(wait)
             elif r.status_code == 401:
                 print("    [HTTP 401 — bad API key? Check $NYT_API_KEY]",
-                      file=sys.stderr)
+                      file=sys.stderr, flush=True)
                 return []
             else:
-                print(f"    [HTTP {r.status_code} on page {page}]", file=sys.stderr)
+                print(f"    [HTTP {r.status_code} on page {page}]", file=sys.stderr, flush=True)
                 if attempt < retries:
                     time.sleep(5 * (attempt + 1))
         except requests.RequestException as e:
@@ -201,8 +215,12 @@ def main():
                    help="YYYY-MM-DD. Defaults to today.")
     p.add_argument("--master-csv", required=True,
                    help="Path to trump_headlines_master.csv")
-    p.add_argument("--delay",      type=float, default=0.5,
-                   help="Seconds between page calls (default: 0.5 = 2 req/s)")
+    p.add_argument("--delay",      type=float, default=2.0,
+                   help="Seconds between page calls (default: 2.0). NYT's "
+                        "documented rate limit is 5/s but empirically 1.0s "
+                        "still triggered 429s on every page. 2.0s eliminates "
+                        "the per-page wait and finishes the same payload faster "
+                        "than burning 60s rate-limit waits on every page.")
     p.add_argument("--api-key",    default=None,
                    help="NYT API key (or set NYT_API_KEY env var)")
     args = p.parse_args()
