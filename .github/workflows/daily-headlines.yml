@@ -1,0 +1,165 @@
+name: Daily headline collection
+
+# Collects Trump headlines from every source once a day and commits a small
+# dated increment to data/incoming/. The local pipeline merges those in.
+#
+# Why this exists: several sources decay or expire between local runs.
+# RSS feeds expose only ~25 recent items, so anything published between
+# manual runs is lost permanently — ABC News and Washington Post both show
+# a literal zero for July 2026 because the gap between local runs was 52 days.
+# Daily collection closes that hole.
+#
+# What it deliberately does NOT do:
+#   - TV transcripts. The Internet Archive keeps them indefinitely, so there's
+#     no urgency, and transcript text would add ~1 GB/year to git history.
+#   - DEBATE classification. Needs PyTorch + a 1 GB model, and would be slow
+#     on CPU runners. That stays local on MPS.
+
+on:
+  schedule:
+    # 09:15 UTC daily (~05:15 ET). Offset from the hour because GitHub's
+    # scheduler is heavily contended exactly on the hour and delays jobs.
+    - cron: "15 9 * * *"
+  workflow_dispatch:        # lets you trigger a run by hand from the Actions tab
+    inputs:
+      lookback_days:
+        description: "Days of history to fetch (default 3)"
+        required: false
+        default: "3"
+
+permissions:
+  contents: write           # needed to commit the increment
+
+concurrency:
+  group: daily-headlines
+  cancel-in-progress: false # never interrupt a run mid-write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Default is a depth-1 shallow clone, which makes the
+          # `git pull --rebase` in the commit step fail. Full history costs
+          # a few seconds here and avoids that.
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r scripts/pipeline/requirements-ci.txt
+
+      - name: Compute date window
+        id: dates
+        run: |
+          LOOKBACK="${{ github.event.inputs.lookback_days || '3' }}"
+          echo "today=$(date -u +%Y-%m-%d)"                      >> "$GITHUB_OUTPUT"
+          echo "start=$(date -u -d "${LOOKBACK} days ago" +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+          echo "window=$((LOOKBACK))d"                           >> "$GITHUB_OUTPUT"
+          echo "month_start=$(date -u +%Y-%m-01)"                >> "$GITHUB_OUTPUT"
+          mkdir -p data/incoming
+
+      # Every source below is `continue-on-error` so one failing provider can
+      # never cost us the others. GDELT and NYT rate-limit by IP and Actions
+      # runners use shared Azure addresses, so partial failure is expected.
+
+      - name: Media Cloud
+        continue-on-error: true
+        env:
+          MEDIACLOUD_API_KEY: ${{ secrets.MEDIACLOUD_API_KEY }}
+        run: |
+          python3 scripts/pipeline/scrape_mediacloud_news.py \
+            --start-date "${{ steps.dates.outputs.start }}" \
+            --end-date   "${{ steps.dates.outputs.today }}" \
+            --output-dir /tmp/mc \
+            --master-csv "data/incoming/${{ steps.dates.outputs.today }}.csv"
+
+      - name: GDELT
+        continue-on-error: true
+        run: |
+          python3 scripts/pipeline/scrape_gdelt.py \
+            --start-date "${{ steps.dates.outputs.start }}" \
+            --end-date   "${{ steps.dates.outputs.today }}" \
+            --master-csv "data/incoming/${{ steps.dates.outputs.today }}.csv" \
+            --delay 8.0
+
+      - name: Publisher RSS
+        continue-on-error: true
+        run: |
+          python3 scripts/pipeline/scrape_rss.py \
+            --config scripts/pipeline/rss_feeds.yaml \
+            --master-csv "data/incoming/${{ steps.dates.outputs.today }}.csv" \
+            --delay 2.0
+
+      - name: Google News RSS
+        continue-on-error: true
+        run: |
+          python3 scripts/pipeline/scrape_gnews.py \
+            --config scripts/pipeline/gnews_feeds.yaml \
+            --master-csv "data/incoming/${{ steps.dates.outputs.today }}.csv" \
+            --window "${{ steps.dates.outputs.window }}" \
+            --delay 3.0
+
+      - name: NYT Article Search
+        continue-on-error: true
+        env:
+          NYT_API_KEY: ${{ secrets.NYT_API_KEY }}
+        run: |
+          if [ -z "$NYT_API_KEY" ]; then
+            echo "NYT_API_KEY not set — skipping"; exit 0
+          fi
+          python3 scripts/pipeline/scrape_nyt_api.py \
+            --start-date "${{ steps.dates.outputs.start }}" \
+            --end-date   "${{ steps.dates.outputs.today }}" \
+            --master-csv "data/incoming/${{ steps.dates.outputs.today }}.csv" \
+            --delay 2.0
+
+      - name: Summarize what was collected
+        id: summary
+        run: |
+          FILE="data/incoming/${{ steps.dates.outputs.today }}.csv"
+          if [ ! -s "$FILE" ]; then
+            echo "No increment file produced — every source failed or found nothing."
+            echo "rows=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          python3 - "$FILE" <<'PY'
+          import sys, pandas as pd
+          df = pd.read_csv(sys.argv[1], dtype=str, low_memory=False)
+          print(f"Collected {len(df):,} rows")
+          if "outlet" in df.columns and len(df):
+              print("\nBy outlet:")
+              for outlet, n in df["outlet"].value_counts().items():
+                  print(f"  {outlet:<22} {n:>5}")
+          PY
+          echo "rows=$(($(wc -l < "$FILE") - 1))" >> "$GITHUB_OUTPUT"
+
+      - name: Commit increment
+        if: steps.summary.outputs.rows != '0'
+        run: |
+          FILE="data/incoming/${{ steps.dates.outputs.today }}.csv"
+          git config user.name  "coverage-tracker-bot"
+          git config user.email "actions@github.com"
+          git add "$FILE"
+          if git diff --cached --quiet; then
+            echo "Nothing changed — no commit."
+            exit 0
+          fi
+          git commit -m "data: daily headline increment ${{ steps.dates.outputs.today }} (${{ steps.summary.outputs.rows }} rows)"
+          # Rebase onto whatever landed while we were collecting, then push.
+          for attempt in 1 2 3; do
+            git pull --rebase --autostash origin "${GITHUB_REF_NAME}" && \
+              git push origin "HEAD:${GITHUB_REF_NAME}" && exit 0
+            echo "push attempt ${attempt} failed, retrying..."
+            sleep 5
+          done
+          echo "::error::Could not push increment after 3 attempts"
+          exit 1

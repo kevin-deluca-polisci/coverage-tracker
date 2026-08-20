@@ -1,0 +1,11 @@
+# Lightweight dependency set for the daily GitHub Action.
+#
+# Deliberately EXCLUDES torch / transformers / accelerate. Classification runs
+# locally on Apple Silicon MPS; CI only collects headlines. Skipping the ML
+# stack takes the install from ~2 GB and several minutes down to ~50 MB and
+# about 20 seconds.
+
+requests>=2.31
+pandas>=2.0
+pyyaml>=6.0
+mediacloud>=4.0

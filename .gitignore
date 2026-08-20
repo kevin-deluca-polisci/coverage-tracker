@@ -21,6 +21,12 @@ __pycache__/
 *.pyc
 scraper_state.json
 
+# Consumed daily increments. The CI job commits data/incoming/YYYY-MM-DD.csv;
+# once merge_incoming.py folds a file into the local master it moves it here.
+# Git history already holds every increment, so archiving it again would just
+# grow the repo (~18 MB/year) for no added recoverability.
+data/incoming/archive/
+
 # Secrets
 .env
 .env.local

@@ -87,6 +87,17 @@ def fetch_month(year, month, api_key, session, retries=3):
                 print("    [HTTP 401 — bad API key? Check $NYT_API_KEY]",
                       file=sys.stderr)
                 return []
+            elif r.status_code == 403:
+                # The Archive API is backed by pre-generated per-month JSON
+                # files in Google Cloud Storage. The file for a month that
+                # hasn't finished yet simply doesn't exist, and GCS answers
+                # with 403 AccessDenied rather than 404. Retrying can never
+                # help, so bail immediately with a clear message instead of
+                # burning ~40s on backoff.
+                print(f"    [{year}-{month:02d} not published by NYT Archive yet "
+                      f"(in-progress month) — use Article Search for this month]",
+                      file=sys.stderr, flush=True)
+                return []
             else:
                 print(f"    [HTTP {r.status_code} for {year}-{month:02d}]",
                       file=sys.stderr)

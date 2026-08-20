@@ -166,12 +166,30 @@ fi
 
 if [[ "$DO_NEWS" -eq 1 ]]; then
   echo ""
-  CURRENT_STAGE="2/5 Headlines scrape (MC + GDELT + NYT)"
-  echo "[2/5] Headlines: scrape (Media Cloud + GDELT + NYT API)..."
+  CURRENT_STAGE="2/5 Headlines scrape (MC + GDELT + RSS + GNews + NYT)"
+  echo "[2/5] Headlines: scrape (Media Cloud + GDELT + RSS + Google News + NYT)..."
   # If no explicit dates, default to last 14 days
   if [[ -z "$START" || -z "$END" ]]; then
     END="$(date +%Y-%m-%d)"
     START="$(date -v-14d +%Y-%m-%d 2>/dev/null || date -d "14 days ago" +%Y-%m-%d)"
+  fi
+
+  # 2·0 — Merge any daily increments collected by the GitHub Action.
+  # The Action runs the headline scrapers daily and commits small dated CSVs
+  # to data/incoming/. This matters most for the RSS-backed outlets, whose
+  # feeds only expose ~25 recent items — anything published between local
+  # runs is otherwise lost for good (ABC News and Washington Post both show
+  # a literal zero for July 2026 because of exactly this).
+  # Pull first so we pick up whatever CI has committed since the last run.
+  INCOMING_DIR="$DATA_RAW/incoming"
+  if [[ -d "$REPO_ROOT/data/incoming" ]]; then
+    echo "  → Merging daily increments from CI..."
+    git -C "$REPO_ROOT" pull --rebase --autostash 2>&1 | sed 's/^/      /' || \
+      echo "      [warning: git pull failed, merging whatever is already local]"
+    "$PY" "$PIPE/merge_incoming.py" \
+      --incoming-dir "$REPO_ROOT/data/incoming" \
+      --master-csv "$HEADLINES_MASTER" 2>&1 | sed 's/^/      /' || \
+      echo "      [warning: merge_incoming failed, continuing with live scrape]"
   fi
 
   # 2a — Media Cloud (still useful for outlets where it works)
@@ -208,24 +226,49 @@ if [[ "$DO_NEWS" -eq 1 ]]; then
       echo "    [warning: RSS scrape failed, continuing]"
   fi
 
-  # 2d — NYT Archive API
-  # CHANGED from Article Search → Archive: Archive returns ~500-800 Trump
-  # headlines/month while Article Search was finding only ~400/month due to
-  # rate-limiting that cut off pagination. One API call per month, no
-  # pagination, much more reliable. Covers current + previous month each run
-  # to handle month-boundary rollover.
+  # 2d — Google News RSS for outlets Media Cloud has dropped
+  # Media Cloud's per-outlet indexing keeps decaying without warning: NYT
+  # (Aug 2025), ABC News (Mar 2026), Bloomberg (Apr 2026), and Reuters
+  # (Jun 2026 — our largest outlet). Google News search feeds give a uniform
+  # fallback that doesn't depend on one aggregator staying healthy.
+  GNEWS_CONFIG="$PIPE/gnews_feeds.yaml"
+  if [[ -f "$GNEWS_CONFIG" ]]; then
+    echo "  → Google News RSS (Reuters, ABC, WaPo, Politico, Bloomberg)..."
+    "$PY" "$PIPE/scrape_gnews.py" \
+      --config "$GNEWS_CONFIG" \
+      --master-csv "$HEADLINES_MASTER" \
+      --delay 3.0 || \
+      echo "    [warning: Google News scrape failed, continuing]"
+  fi
+
+  # 2e — NYT.
+  # NYT is collected in TWO passes, because the Archive API can only serve
+  # COMPLETED months. Its per-month JSON files live in Google Cloud Storage
+  # and aren't generated until a month ends — asking for the in-progress
+  # month returns 403 AccessDenied ("object ... may not exist"). So:
+  #   - Archive API    → previous month. One call, high recall (~700/mo).
+  #   - Article Search → current month-to-date. Paginated, closes the gap.
+  # Together these give continuous NYT coverage with no monthly blind spot.
   if [[ -n "${NYT_API_KEY:-}" ]]; then
-    echo "  → NYT Archive API..."
-    # Default window: last 2 months (current + previous), in YYYY-MM format
-    CUR_MONTH="$(date +%Y-%m)"
     PREV_MONTH="$(date -v-1m +%Y-%m 2>/dev/null || date -d '1 month ago' +%Y-%m)"
+    MONTH_START="$(date +%Y-%m-01)"
+    TODAY_STR="$(date +%Y-%m-%d)"
+
+    echo "  → NYT Archive API (${PREV_MONTH} — completed month)..."
     "$PY" "$PIPE/scrape_nyt_archive.py" \
-      --start-month "$PREV_MONTH" --end-month "$CUR_MONTH" \
+      --start-month "$PREV_MONTH" --end-month "$PREV_MONTH" \
       --master-csv "$HEADLINES_MASTER" \
       --delay 1.0 || \
       echo "    [warning: NYT Archive scrape failed, continuing]"
+
+    echo "  → NYT Article Search (${MONTH_START} → ${TODAY_STR} — current month)..."
+    "$PY" "$PIPE/scrape_nyt_api.py" \
+      --start-date "$MONTH_START" --end-date "$TODAY_STR" \
+      --master-csv "$HEADLINES_MASTER" \
+      --delay 2.0 || \
+      echo "    [warning: NYT Article Search scrape failed, continuing]"
   else
-    echo "  → NYT Archive: SKIPPED (NYT_API_KEY env var not set)"
+    echo "  → NYT: SKIPPED (NYT_API_KEY env var not set)"
   fi
 
   # ---- 3) Headlines: classify -----------------------------------------

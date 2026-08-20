@@ -1,0 +1,59 @@
+# Google News RSS search config.
+#
+# Google News exposes an RSS search endpoint that can be scoped to a single
+# publisher with a `site:` operator. This gives us a uniform fallback for any
+# outlet that Media Cloud stops indexing — which has now happened four times
+# (NYT Aug 2025, ABC Mar 2026, Bloomberg Apr 2026, Reuters Jun 2026), so it's
+# a recurring failure mode rather than a one-off.
+#
+# Endpoint:
+#   https://news.google.com/rss/search?q=<QUERY>&hl=en-US&gl=US&ceid=US:en
+#
+# Query is built as:  "<terms> site:<domain> when:<window>"
+#
+# Limits and quirks (handled by scrape_gnews.py):
+#   - Caps at roughly 100 items per query, so this is for ongoing collection,
+#     NOT historical backfill. Run daily and you'll capture nearly everything.
+#   - Titles arrive with the publisher appended: "Headline text - Reuters".
+#     The scraper strips that suffix.
+#   - Links are news.google.com redirect URLs, not canonical article URLs, so
+#     URL-based dedup against other sources won't catch cross-source dupes.
+#     The scraper additionally dedups on (normalized title, date, outlet).
+#
+# `terms` defaults to "trump" if omitted. Keep it broad — the scraper filters
+# headlines for "trump" client-side anyway.
+
+defaults:
+  terms: trump
+  window: 7d          # when: operator. 1d/7d/1h etc. Daily runs can use 2d.
+
+outlets:
+  # PRIMARY NEED — Media Cloud stopped indexing Reuters around 2026-06-19 and
+  # GDELT has never indexed it. Reuters was the single largest outlet in the
+  # dataset (~66K headlines) so this is the highest-value recovery.
+  - name: Reuters
+    domain: reuters.com
+
+  # SUPPLEMENTS — these are RSS-only today and their own feeds expose just
+  # ~25 recent items, so coverage is thin. Google News indexes far more of
+  # each publisher and fills the gaps.
+  # ABC News needs special handling. Its articles live at abcnews.go.com — a
+  # subdomain of an unrelated registered domain — and Google's site: operator
+  # returns zero results for it (verified: site:abcnews.go.com, site:go.com,
+  # and site:abcnews.go.com/politics all return nothing, while a plain keyword
+  # search returns the full 100). Since a keyword search isn't restricted to
+  # one publisher, publisher_match filters results against the <source> element
+  # Google returns, so a CNN piece mentioning ABC News doesn't get misfiled.
+  - name: ABC News
+    domain: abcnews.go.com
+    query: "trump abcnews {when}"
+    publisher_match: "ABC News"
+
+  - name: Washington Post
+    domain: washingtonpost.com
+
+  - name: Politico
+    domain: politico.com
+
+  - name: Bloomberg
+    domain: bloomberg.com
