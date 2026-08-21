@@ -11,9 +11,15 @@ two-thirds of every committed file is data we already have. Left alone that's
 ~114 MB of git history a year to carry maybe 38 MB of actual information.
 
 The increments already sitting in data/incoming/ ARE available to CI, though —
-they're committed files. So we dedup against those. Anything already merged
-locally has been archived out of that directory, and the master-side merge
-dedups again, so a row can never slip through twice.
+they're committed files. So we dedup against those, including the ones a local
+merge has moved into data/incoming/archive/. Scanning the archive matters: it
+holds every increment that has already been consumed, which on the day after a
+local refresh is all of them. Skipping it turns this script into a no-op
+exactly when it is most needed.
+
+Dedup here is an efficiency measure, not a correctness one — merge_incoming.py
+dedups against the master on the same two keys, so a row can never reach the
+master twice regardless of what lands in an increment.
 
 Dedup uses the same two keys as merge_incoming.py:
   - normalized URL
@@ -27,6 +33,7 @@ Usage:
 """
 
 import argparse
+import datetime
 import glob
 import os
 import re
@@ -71,6 +78,9 @@ def main():
                    help="Directory of previously-committed increments")
     p.add_argument("--out",          required=True,
                    help="Where to write today's filtered increment")
+    p.add_argument("--dedup-days",   type=int, default=14,
+                   help="Only dedup against increments this recent (default 14). "
+                        "Must comfortably exceed the collection lookback window.")
     args = p.parse_args()
 
     if not os.path.exists(args.collected):
@@ -90,11 +100,34 @@ def main():
     print(f"Collected this run: {len(collected):,} rows")
 
     # ---- Build the "already committed" index from prior increments ------
+    #
+    # Includes archive/ as well as the top level. A local merge moves consumed
+    # increments into data/incoming/archive/, so on any day following a local
+    # refresh the top-level directory is empty and there is nothing left to
+    # dedup against — the filter silently becomes a no-op and re-commits the
+    # whole lookback window. That is how it behaved on 2026-08-21: 77% of the
+    # committed increment was already sitting in the archive.
+    #
+    # Bounded by recency rather than reading the whole archive: an increment
+    # older than the collection window cannot overlap with today's batch, so
+    # there is no reason to keep parsing it as the archive grows.
     out_abs = os.path.abspath(args.out)
-    prior_files = [
-        f for f in sorted(glob.glob(os.path.join(args.incoming_dir, "*.csv")))
-        if os.path.abspath(f) != out_abs
-    ]
+    candidates = (glob.glob(os.path.join(args.incoming_dir, "*.csv")) +
+                  glob.glob(os.path.join(args.incoming_dir, "archive", "*.csv")))
+
+    cutoff = datetime.date.today() - datetime.timedelta(days=args.dedup_days)
+    prior_files = []
+    for f in sorted(candidates):
+        if os.path.abspath(f) == out_abs:
+            continue
+        stem = os.path.splitext(os.path.basename(f))[0]
+        try:
+            stamp = datetime.date.fromisoformat(stem)
+        except ValueError:
+            prior_files.append(f)   # unparseable name — keep it, be safe
+            continue
+        if stamp >= cutoff:
+            prior_files.append(f)
 
     seen_urls, seen_keys = set(), set()
     for f in prior_files:
@@ -114,6 +147,16 @@ def main():
     seen_urls.discard("")
     print(f"Prior increments: {len(prior_files)} file(s), "
           f"{len(seen_urls):,} URLs / {len(seen_keys):,} title keys")
+
+    # This failed silently once — the archive wasn't being scanned, so the
+    # dedup index was empty and the whole lookback window got re-committed
+    # every day while the logs looked entirely normal. An empty index is
+    # legitimate only on the very first run, so say so loudly otherwise.
+    if not prior_files:
+        print("  WARNING: no prior increments found. Expected only on the "
+              "first ever run — otherwise the increment will re-commit the "
+              "entire lookback window. Check data/incoming/ and its archive/.",
+              file=sys.stderr)
 
     # ---- Filter ---------------------------------------------------------
     kept = []
