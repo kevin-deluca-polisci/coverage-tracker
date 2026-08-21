@@ -38,7 +38,53 @@ header h1 {
 header .subtitle { color: #666; margin: 0 0 8px; font-size: 15px; }
 header .byline { color: #666; margin: 0 0 8px; font-size: 14px; }
 header .byline a { color: #1a1a1a; }
+.hist-intro {
+  color: #555;
+  font-size: 15px;
+  line-height: 1.65;
+  max-width: 820px;
+  margin: 20px 0 4px;
+}
+.hist-intro span { color: #888; }
 header .meta { color: #999; margin: 0; font-size: 12px; font-family: 'IBM Plex Mono', monospace; }
+
+/* ---------- Primary tabs ---------- */
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin: 20px 0 4px;
+  border-bottom: 1px solid #ececec;
+}
+.tabs button {
+  border: none;
+  background: transparent;
+  color: #888;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 10px 18px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.15s, border-color 0.15s;
+}
+.tabs button:hover { color: #1a1a1a; }
+.tabs button.active {
+  color: #1a1a1a;
+  border-bottom-color: #1a1a1a;
+}
+.tab-panel[hidden] { display: none; }
+.data-on-main { margin: 8px 0 40px; }
+.data-on-main h3 {
+  font-family: 'IBM Plex Serif', serif;
+  font-weight: 500;
+  font-size: 1.1em;
+  margin: 0 0 8px;
+  padding-top: 20px;
+  border-top: 1px solid #ececec;
+}
 
 /* ---------- KPI strip ---------- */
 .kpi-strip {
@@ -362,6 +408,16 @@ footer a { color: #888; }
   <p class="meta" id="meta-line">Loading data…</p>
 </header>
 
+<!-- PRIMARY TABS -->
+<nav class="tabs" id="tabs" role="tablist">
+  <button data-tab="current"    class="active" role="tab">Current</button>
+  <button data-tab="historical"           role="tab">Historical</button>
+  <button data-tab="about"                role="tab">About</button>
+</nav>
+
+<!-- ===================== TAB: CURRENT ===================== -->
+<div class="tab-panel" id="panel-current">
+
 <!-- KPI STRIP -->
 <section class="kpi-strip" id="kpi-strip">
   <div class="kpi-card">
@@ -455,10 +511,79 @@ footer a { color: #888; }
   </div>
 </section>
 
+<!-- Data access stays with the charts: someone who has just looked at a series
+     is the person most likely to want the numbers behind it. -->
+<section class="methodology data-on-main">
+  <h3>Data access</h3>
+  <p>The weekly aggregated CSVs that power this page are released under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. See <a href="#about" class="tab-link" data-tab="about">About</a> for how the index is built and what it does not capture.</p>
+  <button class="download-btn" id="download-btn">Download weekly summary CSV</button>
+</section>
+
+</div><!-- /panel-current -->
+
+<!-- ===================== TAB: HISTORICAL ===================== -->
+<div class="tab-panel" id="panel-historical" hidden>
+
+  <p class="hist-intro">
+    The same index, computed from newspaper headlines back to 1947. Each line
+    is one presidency aligned to its own inauguration, so month 12 of one
+    administration sits directly above month 12 of another.
+    <span id="hist-corpus-note"></span>
+  </p>
+
+  <section class="controls-bar">
+    <div class="control-group">
+      <label>Presidents</label>
+      <div class="chips" id="hist-chips"></div>
+    </div>
+    <div class="control-group">
+      <label>Outlets</label>
+      <div class="pill-toggle" id="hist-basket">
+        <button data-basket="full" class="active">All papers</button>
+        <button data-basket="core">Seven papers, 1947–present</button>
+      </div>
+    </div>
+    <div class="control-group">
+      <label>Term window</label>
+      <div class="preset-buttons" id="hist-window">
+        <button data-months="12">First year</button>
+        <button data-months="24">First 2 years</button>
+        <button data-months="48">Full term</button>
+        <button data-months="0" class="active">All available</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="chart-grid">
+    <div class="chart-card chart-card-full">
+      <h3>Performance Cues Index by time in term</h3>
+      <p class="chart-note">Bold lines are a seven-month local trend; the faint line behind each is the raw monthly PCI it is fitted to. Shaded bands are 95% intervals and widen when fewer papers contribute. The window is fixed at seven months for every president, so a one-term and a two-term administration are smoothed by the same amount. <span id="hist-basket-note"></span></p>
+      <div id="chart-hist" class="chart-box chart-box-tall"></div>
+    </div>
+  </div>
+
+  <div class="chart-grid">
+    <div class="chart-card chart-card-full">
+      <h3>Term average by president</h3>
+      <p class="chart-note">Mean PCI across each presidency, ordered chronologically.</p>
+      <div id="chart-hist-bar" class="chart-box"></div>
+    </div>
+  </div>
+
+  <section class="methodology data-on-main">
+    <h3>About this series</h3>
+    <p id="hist-method"></p>
+  </section>
+
+</div><!-- /panel-historical -->
+
+<!-- ===================== TAB: ABOUT ===================== -->
+<div class="tab-panel" id="panel-about" hidden>
+
 <!-- METHODOLOGY -->
 <section class="methodology">
   <h2>About this project</h2>
-  <p>The Presidential Coverage Tracker is a research project from Yale political scientists that measures the tone of presidential coverage across major US broadcast and cable news networks and digital news outlets. We collect closed-caption transcripts from the <a href="https://archive.org/details/tv" target="_blank" rel="noopener">Internet Archive's TV News Archive</a> and news headlines from <a href="https://search.mediacloud.org" target="_blank" rel="noopener">Media Cloud</a>, classify each segment and headline mentioning the president using a fine-tuned natural language inference model, and update this dashboard every few days.</p>
+  <p>The Presidential Coverage Tracker is a research project from Yale political scientists that measures the tone of presidential coverage across major US broadcast and cable news networks and digital news outlets. We collect closed-caption transcripts from the <a href="https://archive.org/details/tv" target="_blank" rel="noopener">Internet Archive's TV News Archive</a> and news headlines from <a href="https://search.mediacloud.org" target="_blank" rel="noopener">Media Cloud</a>, classify each segment and headline mentioning the president using a fine-tuned natural language inference model, and update this dashboard every few days. A third corpus of newspaper headlines, described below, extends the same measure back to 1947 so the current administration can be read against every president since Truman rather than on its own.</p>
 
   <!-- TODO: when the paper is posted, replace href="#" below with the actual URL on kevinmdeluca.com -->
   <p>The classification model, training data, and analysis code for the net coverage score are open source. The paper's code repository is at <a href="https://github.com/kevin-deluca-polisci/presidential_headlines" target="_blank" rel="noopener">github.com/kevin-deluca-polisci/presidential_headlines</a>; the code for this dashboard lives at <a href="https://github.com/kevin-deluca-polisci/coverage-tracker" target="_blank" rel="noopener">github.com/kevin-deluca-polisci/coverage-tracker</a>. The full paper is <a href="#" target="_blank" rel="noopener">forthcoming</a>.</p>
@@ -481,6 +606,7 @@ footer a { color: #888; }
 
   <h3>Smoothing</h3>
   <p>Bold lines are LOESS smooths (span = 0.5) fit to the weekly index. Faint lines underneath are the weekly values the smoother is fit to.</p>
+  <p>The Historical tab uses a window fixed at <strong>seven months</strong> rather than a span proportion. A proportion would smooth a two-term presidency over roughly four years and a partial first term over a few months, and that difference in wiggliness would read as a difference in coverage rather than as an artefact of how long each line is. Fixing the window in months damps month-to-month variation by about three quarters for every administration alike.</p>
 
   <h3>What the index does not capture</h3>
   <p>It measures cues about performance, not whether coverage is accurate, fair, or deserved — the object of measurement is the coverage, not the conduct being covered. It says nothing about volume: a week of little but harsh coverage and a week of heavy but balanced coverage can share a PCI. It treats each qualifying outlet equally regardless of audience size. And it depends on the corpus actually available, which has gaps; see the outlets listed below and the coverage counts in the volume chart.</p>
@@ -495,15 +621,22 @@ footer a { color: #888; }
     <li>Direct RSS feeds — for ABC News (Media Cloud coverage ended in March 2026), Bloomberg (Media Cloud coverage degraded in April 2026), Politico (Media Cloud captured only a handful of articles over the dashboard's history), and Washington Post (added June 2026). RSS surfaces the most recent articles per feed, so very high-volume periods may miss some items before the next polling cycle. These four outlets are noted with their primary source in the per-outlet documentation.</li>
   </ul>
 
-  <h3>Data access</h3>
-  <p>The weekly aggregated CSVs that power this page are released under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</p>
-  <button class="download-btn" id="download-btn">Download weekly summary CSV</button>
+  <h3>The historical series</h3>
+  <p>The Historical tab is built from a different corpus and a different collection method, and the two should not be pooled. It comes directly from the headlines corpus assembled for the paper: <strong>newspaper headlines only</strong> — no broadcast transcripts and no digital outlets — drawn from 44 US daily papers running from November 1947 to the end of 2025.</p>
+  <p>These headlines are not scraped. They are extracted from digitised newspaper archives through <a href="https://about.proquest.com/en/products-services/TDM-Studio/" target="_blank" rel="noopener">ProQuest TDM Studio</a>, which provides text and data mining access to full-run newspaper databases under licence. That is why the historical corpus reaches back seven decades where the live corpus does not, and also why it is fixed rather than updating: the daily collection pipeline feeds the Current tab only. The historical series changes when the paper's corpus is rebuilt, not on a schedule.</p>
+  <p><strong>Data availability.</strong> The monthly series charted here is in the <a href="https://github.com/kevin-deluca-polisci/coverage-tracker" target="_blank" rel="noopener">tracker repository</a> already. The underlying headline-level corpus — every classified headline behind these monthly figures — will be released when the performance cues paper is published. It is not in the repository in the meantime because of its size and because the paper it belongs to is still under review, not because access is restricted; if you need it before then, write to us.</p>
+  <p>Classification is <em>identical</em> to the current series — the same fine-tuned performance cues model, the same positive and negative hypotheses, applied to the headline as the unit of analysis. A 1952 headline and a 2026 headline are scored by the same classifier asking the same question, which is what makes the comparison across presidencies meaningful in the first place.</p>
+  <p><strong>Monthly rather than weekly.</strong> Mid-century papers ran a handful of headlines a week about a president where a wire service now runs hundreds, so the aggregation period is a month and an outlet needs 5 headlines in a month to contribute. We tested a weekly version: it is technically feasible, but it roughly doubles the width of each interval while leaving the smoothed trend almost unchanged (the two correlate at 0.97), and for the earliest presidencies essentially none of the week-to-week movement is distinguishable from sampling error. Monthly is the finer measurement despite being the coarser period.</p>
+  <p><strong>Two further rules.</strong> A month resting on a single paper is dropped: with one outlet the outlet effect and the month effect cannot be separated, so the cross-outlet index is just that paper. This excludes one month in 953. Outlet and period effects are then estimated jointly across the whole 1947–present panel, so a paper entering or leaving the archive does not move the series on its own. The seven-paper basket restricts to titles publishing across all fifteen presidencies, so movement in the index can be checked against movement in the sample. The two orderings of the presidencies are near-identical (rank correlation 0.99, term averages correlating at 0.98), but they are not interchangeable: the basket tracks the full corpus at 0.92 month to month, and the seven legacy papers run about 2 points less negative on average — most visibly for Obama, where the gap is 5.7 points. Use the basket to check whether a change in the line reflects a change in the sample, not as a substitute series.</p>
+  <p><strong>What the historical series cannot tell you.</strong> Which papers were digitised varies a great deal across eras, and presidencies covered by more papers show more months that register as significantly unusual — roughly two and a half times as many as thin-corpus presidencies. Some of that is real and some of it is simply that a denser corpus resolves more. Read the level and the trend with more confidence than the spikes, particularly before 1980.</p>
 
   <h3>About the authors</h3>
   <p><strong><a href="https://kevinmdeluca.com/" target="_blank" rel="noopener">Kevin DeLuca</a></strong> is an Assistant Professor of Political Science at Yale University, where he studies American politics with a focus on elections and media. His research examines how news coverage shapes political information and accountability, including work on newspaper endorsements and the effects of local news. He is a Resident Fellow at Yale's Institution for Social and Policy Studies and a Faculty Affiliate at the Center for the Study of American Politics. Further work is at <a href="https://kevinmdeluca.com/" target="_blank" rel="noopener">kevinmdeluca.com</a>.</p>
   <p>This tracker was developed with <strong>Zoe Kava</strong>, who built and validated the classification model the index rests on.</p>
   <p>Questions about the data or the measure: <a href="mailto:kevin.deluca@yale.edu">kevin.deluca@yale.edu</a></p>
 </section>
+
+</div><!-- /panel-about -->
 
 <footer>
   <span id="footer-meta">Presidential Coverage Tracker · Yale University</span>
@@ -607,13 +740,15 @@ function loadCsv(path) {
 // =====================================================================
 async function loadAll() {
   const cacheBust = "?v=" + Date.now();
-  const [tv, tv_agg, news, news_agg, topics, trailing] = await Promise.all([
+  const [tv, tv_agg, news, news_agg, topics, trailing, histRows, histMeta] = await Promise.all([
     loadCsv("data/weekly_tv.csv" + cacheBust),
     loadCsv("data/weekly_tv_agg.csv" + cacheBust),
     loadCsv("data/weekly_news.csv" + cacheBust),
     loadCsv("data/weekly_news_agg.csv" + cacheBust),
     loadCsv("data/topics_weekly.csv" + cacheBust).catch(() => null),  // optional
     fetch("data/trailing_7d.json" + cacheBust).then(r => r.ok ? r.json() : null).catch(() => null),
+    loadCsv("data/historical_pci.csv" + cacheBust).catch(() => null),
+    fetch("data/historical_meta.json" + cacheBust).then(r => r.ok ? r.json() : null).catch(() => null),
   ]);
   const dateify = rows => rows.map(r => ({...r, week: parseDate(r.week)}));
   state.data.tv       = dateify(tv);
@@ -622,6 +757,9 @@ async function loadAll() {
   state.data.news_agg = dateify(news_agg);
   state.data.topics   = topics ? dateify(topics) : null;
   state.data.trailing = trailing;
+  // Historical rows keep months_in as the x-axis, so no date coercion needed.
+  hist.rows = histRows || null;
+  hist.meta = histMeta || null;
 }
 
 // =====================================================================
@@ -1143,6 +1281,250 @@ function renderAllCharts() {
 }
 
 // =====================================================================
+// HISTORICAL TAB
+// =====================================================================
+// Newspapers, 1947-present, monthly, aligned to time-in-term. Kept apart
+// from the broadcast and digital series on purpose: same classifier and
+// hypotheses, different medium, so the numbers are comparable but the
+// corpora should not be silently pooled.
+
+// Derived from the Okabe-Ito colour-blind-safe set, then extended and ordered
+// so that consecutive presidencies land in different hue families — most
+// comparisons people make are between administrations near each other in time.
+// Checked in CIE Lab: minimum separation across all 105 pairs is dE 22.9,
+// consecutive presidencies at least 41.6, and the default Trump II / Biden
+// pairing 69.8 (68.1 under simulated deuteranopia). The sitting president is
+// near-black so it reads as the focal series against whatever is added to it.
+const PRES_COLORS = {
+  "Truman":"#0072B2","Eisenhower":"#E69F00","Kennedy":"#009E73","Johnson":"#CC79A7",
+  "Nixon":"#767676","Ford":"#8C4A00","Carter":"#7FBF7F","Reagan":"#D55E00",
+  "Bush 41":"#4B3F94","Clinton":"#B8A200","Bush 43":"#00666E","Obama":"#A63D40",
+  "Trump I":"#5C6B00","Biden":"#6EA8DC","Trump II":"#111111"
+};
+
+// Opens on the current president against the one before, which is the
+// comparison most readers arrive wanting. Everything else is opt-in.
+const HIST_DEFAULT = ["Trump II", "Biden"];
+
+const hist = { rows: null, meta: null, selected: [...HIST_DEFAULT],
+               basket: "full", window: 0 };
+
+function histPresidents() {
+  if (!hist.meta) return [];
+  return hist.meta.presidents.map(p => p.label);   // chronological
+}
+
+function histRowsFor(label) {
+  return hist.rows
+    .filter(r => r.basket === hist.basket && r.pres === label &&
+                 (hist.window === 0 || r.months_in < hist.window))
+    .sort((a, b) => a.months_in - b.months_in);
+}
+
+function renderHistChips() {
+  const box = document.getElementById("hist-chips");
+  if (!box) return;
+  box.innerHTML = "";
+  histPresidents().forEach(name => {
+    const chip = document.createElement("span");
+    const on = hist.selected.includes(name);
+    chip.className = "chip" + (on ? " active" : "");
+    chip.textContent = name;
+    if (on) {
+      const c = PRES_COLORS[name] || "#888";
+      chip.style.background = c; chip.style.borderColor = c;
+    }
+    chip.onclick = () => {
+      const i = hist.selected.indexOf(name);
+      if (i >= 0) hist.selected.splice(i, 1); else hist.selected.push(name);
+      renderHistChips(); renderHistChart();
+    };
+    box.appendChild(chip);
+  });
+}
+
+// Three layers per president, same grammar as the Current tab so a reader
+// moving between tabs does not have to relearn the chart:
+//
+//   band  — the fixed-effects measurement interval, widening where a month
+//           rests on fewer papers
+//   thin  — the raw monthly index, drawn faint
+//   bold  — the seven-month LOESS trend
+//
+// Drawing the raw series underneath is the whole answer to "isn't this too
+// smooth?". The trend line is an aid to reading, and the reader can see
+// exactly how much scatter it is sitting on top of. Only the bold line
+// carries a hover label; three tooltips per president would be unreadable
+// with a dozen administrations on the axis.
+function renderHistChart() {
+  if (!hist.rows) return;
+  const traces = [];
+  hist.selected.forEach(name => {
+    const rows = histRowsFor(name);
+    if (!rows.length) return;
+    const color = PRES_COLORS[name] || "#888";
+    const xs = rows.map(r => r.months_in);
+
+    traces.push({
+      x: [...xs, ...xs.slice().reverse()],
+      y: [...rows.map(r => r.pci_hi), ...rows.slice().reverse().map(r => r.pci_lo)],
+      type: "scatter", mode: "lines", fill: "toself",
+      fillcolor: hexToRgba(color, 0.10), line: { width: 0 },
+      hoverinfo: "skip", showlegend: false, name: name + " band"
+    });
+    // Raw monthly, faded and thin.
+    traces.push({
+      x: xs, y: rows.map(r => r.pci),
+      type: "scatter", mode: "lines",
+      line: { color: hexToRgba(color, 0.30), width: 1 },
+      hoverinfo: "skip", showlegend: false, name: name + " raw"
+    });
+    // Smoothed trend. Falls back to the raw series if the smoother declined
+    // to fit — a president with fewer than five observed months — so the
+    // president still appears rather than silently vanishing from the chart.
+    const hasSmooth = rows.some(r => r.pci_smooth != null && r.pci_smooth !== "");
+    traces.push({
+      x: xs, y: rows.map(r => (hasSmooth ? r.pci_smooth : r.pci)),
+      type: "scatter", mode: "lines",
+      line: { color, width: 2.5 }, name,
+      customdata: rows.map(r => [r.n_outlets, r.n_headlines, r.pci]),
+      hovertemplate: `<b>${name}</b> · month %{x}<br>trend %{y:.1f}%` +
+                     `<br>month itself %{customdata[2]:.1f}%` +
+                     `<br>%{customdata[1]:,} headlines, %{customdata[0]} papers<extra></extra>`
+    });
+  });
+  const lay = baseLayout("PCI", { pct: true, zero: true });
+  lay.xaxis.tickformat = null;
+  lay.xaxis.title = { text: "months since inauguration", font: { size: 11, color: "#888" } };
+  lay.hovermode = "closest";
+  Plotly.react("chart-hist", traces, lay, PLOTLY_CONFIG);
+
+  document.getElementById("hist-basket-note").textContent =
+    hist.basket === "core"
+      ? "Restricted to the seven papers publishing across all fifteen presidencies."
+      : "All 44 papers in the corpus.";
+}
+
+function renderHistBar() {
+  if (!hist.rows) return;
+  const names = histPresidents();
+  const means = names.map(n => {
+    const rows = hist.rows.filter(r => r.basket === hist.basket && r.pres === n);
+    if (!rows.length) return null;
+    return rows.reduce((a, r) => a + r.pci, 0) / rows.length;
+  });
+  const keep = names.map((n, i) => [n, means[i]]).filter(([, v]) => v != null);
+  const trace = {
+    x: keep.map(k => k[0]), y: keep.map(k => k[1]), type: "bar",
+    marker: { color: keep.map(k => PRES_COLORS[k[0]] || "#888") },
+    hovertemplate: "%{x}: %{y:.1f}%<extra></extra>", showlegend: false
+  };
+  const lay = baseLayout("Mean PCI", { pct: true, zero: true, showlegend: false });
+  lay.margin.b = 70; lay.xaxis.tickangle = -35; lay.xaxis.tickfont = { size: 10 };
+  lay.xaxis.tickformat = null;
+  Plotly.react("chart-hist-bar", [trace], lay, PLOTLY_CONFIG);
+}
+
+function renderHistMeta() {
+  if (!hist.meta) return;
+  const m = hist.meta;
+  const note = document.getElementById("hist-corpus-note");
+  if (note) note.textContent =
+    `Corpus runs ${fmtPretty(parseDate(m.corpus_start))} to ` +
+    `${fmtPretty(parseDate(m.corpus_end))} across ${m.n_outlets} papers.`;
+
+  const meth = document.getElementById("hist-method");
+  if (meth) meth.innerHTML =
+    `Built from ${m.n_outlets} newspapers using the same classifier and hypotheses as the ` +
+    `Current tab, so the numbers are directly comparable — but newspapers are a separate ` +
+    `corpus from broadcast and digital coverage and are never pooled with them. ` +
+    `Values are monthly rather than weekly: mid-century papers published a few headlines a ` +
+    `week about a president where a wire service now publishes hundreds, and a weekly ` +
+    `threshold would discard most of the historical record. An outlet needs ` +
+    `${m.min_headlines_per_outlet_month} headlines in a month to contribute. ` +
+    `Outlet and period effects are estimated jointly across the whole 1947–present panel, ` +
+    `so a paper entering or leaving the corpus does not move the series by itself. ` +
+    `The seven-paper option restricts to titles publishing across all fifteen presidencies, so ` +
+    `movement in the index can be checked against movement in the sample. It ranks the ` +
+    `presidencies almost identically to the full corpus but runs about 2 points less negative ` +
+    `and tracks it at 0.92 month to month, so it is a robustness check rather than a second ` +
+    `estimate of the same quantity. ` +
+    `Trend lines are LOESS fits over a seven-month window. The window is set in months ` +
+    `rather than as a share of each term, because a share would smooth an eight-year ` +
+    `presidency over roughly four years and a first year over a few months, and the ` +
+    `difference in wiggliness would read as a difference in coverage. Fixing it in months ` +
+    `damps month-to-month variation by about three quarters for every administration alike. ` +
+    `The raw monthly values are drawn underneath so the fit can be judged against them.`;
+}
+
+function renderHistorical() {
+  renderHistChips(); renderHistChart(); renderHistBar(); renderHistMeta();
+}
+
+// =====================================================================
+// TAB NAVIGATION
+// =====================================================================
+// The tab is written to the URL hash so a specific view can be linked to —
+// #about in particular, since that is where the case for the measure lives
+// and it is the part most worth citing. When this eventually moves onto the
+// main site these become real pages and the hashes become paths.
+const TABS = ["current", "historical", "about"];
+
+function showTab(name, { updateHash = true } = {}) {
+  if (!TABS.includes(name)) name = "current";
+  TABS.forEach(t => {
+    const panel = document.getElementById("panel-" + t);
+    if (panel) panel.hidden = (t !== name);
+  });
+  document.querySelectorAll("#tabs button").forEach(b =>
+    b.classList.toggle("active", b.dataset.tab === name));
+
+  if (updateHash) {
+    const target = name === "current" ? " " : "#" + name;
+    history.replaceState(null, "", name === "current"
+      ? window.location.pathname + window.location.search
+      : target);
+  }
+
+  // Plotly sizes to the container, and a chart drawn while its panel was
+  // hidden comes back 0px wide. Historical charts are also drawn lazily on
+  // first reveal, since most visitors never open that tab.
+  if (window.Plotly) {
+    if (name === "current") {
+      ["chart-net", "chart-neg", "chart-vol", "chart-bar"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el && el.data) Plotly.Plots.resize(el);
+      });
+    } else if (name === "historical") {
+      const el = document.getElementById("chart-hist");
+      if (el && !el.data) renderHistorical();
+      else ["chart-hist", "chart-hist-bar"].forEach(id => {
+        const c = document.getElementById(id);
+        if (c && c.data) Plotly.Plots.resize(c);
+      });
+    }
+  }
+  postHeight();
+}
+
+document.getElementById("tabs").addEventListener("click", e => {
+  const btn = e.target.closest("button[data-tab]");
+  if (btn) showTab(btn.dataset.tab);
+});
+
+// In-page links that jump to a tab (e.g. the About pointer under Data access)
+document.addEventListener("click", e => {
+  const link = e.target.closest("a.tab-link[data-tab]");
+  if (!link) return;
+  e.preventDefault();
+  showTab(link.dataset.tab);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+window.addEventListener("hashchange", () =>
+  showTab(window.location.hash.replace("#", ""), { updateHash: false }));
+
+// =====================================================================
 // EVENTS
 // =====================================================================
 document.getElementById("mode-toggle").addEventListener("click", e => {
@@ -1168,6 +1550,25 @@ document.getElementById("preset-buttons").addEventListener("click", e => {
 
 document.getElementById("date-from").addEventListener("change", onCustomDateChange);
 document.getElementById("date-to").addEventListener("change", onCustomDateChange);
+
+// ---- Historical controls ----
+document.getElementById("hist-basket").addEventListener("click", e => {
+  const b = e.target.closest("button[data-basket]");
+  if (!b) return;
+  hist.basket = b.dataset.basket;
+  document.querySelectorAll("#hist-basket button").forEach(x =>
+    x.classList.toggle("active", x === b));
+  renderHistChart(); renderHistBar();
+});
+
+document.getElementById("hist-window").addEventListener("click", e => {
+  const b = e.target.closest("button[data-months]");
+  if (!b) return;
+  hist.window = parseInt(b.dataset.months, 10);
+  document.querySelectorAll("#hist-window button").forEach(x =>
+    x.classList.toggle("active", x === b));
+  renderHistChart();
+});
 
 document.getElementById("download-btn").addEventListener("click", () => {
   const rows = state.mode === "tv" ? state.data.tv : state.data.news;
@@ -1211,6 +1612,10 @@ function postHeight() {
     // Topic chips also disabled with the placeholder; uncomment when re-enabling.
     // renderTopicChips();
     renderAllCharts();
+    // Open whichever tab the URL asks for. Done after the charts exist so
+    // landing directly on #about doesn't leave them sized against a hidden
+    // container when the reader switches back.
+    showTab(window.location.hash.replace("#", ""), { updateHash: false });
     // Tell any embedding parent our height (now and on resize/changes)
     postHeight();
     window.addEventListener("resize", postHeight);
