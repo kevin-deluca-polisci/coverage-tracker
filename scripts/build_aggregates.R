@@ -12,8 +12,17 @@
 #   weekly_news.csv     (per outlet, by week)
 #   weekly_news_agg.csv (across-outlet aggregate, by week)
 #
-# Each file contains both raw weekly values (net_score, pct_negative,
-# total_segments) and LOESS-smoothed values with 95% CI bounds.
+# The measure is the Performance Cues Index (PCI): the share of coverage
+# carrying a positive performance cue minus the share carrying a negative one.
+#
+# Per-outlet files carry the outlet's own weekly PCI plus an `eligible` flag
+# (see MIN_WEEKLY). Aggregate files carry:
+#   pci                 headline — two-way fixed-effects period effect
+#   pci_se, pci_lo/hi   measurement band, widens when fewer outlets contribute
+#   pci_raw             the older raw unweighted mean, kept for comparison
+#   n_groups_used       outlets that met the volume threshold that week
+#   n_groups_total      outlets present at all that week
+#   smooth_pci*         LOESS trend and its fit interval
 #
 # The static page (index.html) reads these directly. Raw chunk/headline
 # CSVs never need to leave the cluster.
@@ -65,10 +74,11 @@ parse_args_simple <- function(args, defaults = list()) {
 }
 
 opt <- parse_args_simple(commandArgs(trailingOnly = TRUE), defaults = list(
-  chunks    = NULL,
-  headlines = NULL,
-  `out-dir` = "data",
-  span      = "0.5"
+  chunks       = NULL,
+  headlines    = NULL,
+  `out-dir`    = "data",
+  span         = "0.5",
+  `min-weekly` = "30"
 ))
 
 if (is.null(opt$chunks) || is.null(opt$headlines)) {
@@ -78,6 +88,13 @@ if (!dir.exists(opt[["out-dir"]])) dir.create(opt[["out-dir"]], recursive = TRUE
 
 LOESS_SPAN <- as.numeric(opt$span)
 Z95 <- qnorm(0.975)  # 1.96 for 95% CI
+
+# Minimum headlines for an outlet-week to enter the headline aggregate.
+# PCI is a percentage, so a 1-article week returns ±100 and would otherwise
+# carry the same weight as an outlet publishing 500 that week. Below this
+# threshold an outlet-week is still reported individually but is excluded
+# from the aggregate. See PLAN-measuring-the-press.md for the measured effect.
+MIN_WEEKLY <- as.numeric(opt[["min-weekly"]])
 
 # ---- Network / outlet maps --------------------------------------------
 
@@ -126,13 +143,38 @@ KEEP_OUTLETS <- c("Reuters","Fox News","CBS News","Bloomberg","CNN","ABC News",
                   "USA Today","New York Times","NBC News","Los Angeles Times","NPR",
                   "Washington Post","Politico")
 
+# Per-outlet start dates. Coverage before the listed date is dropped.
+#
+# This is for outlets where collection was demonstrably broken early on, so the
+# handful of articles we did capture are not a sample of that outlet's coverage
+# — they are a sample of whatever the scraper happened to catch. Averaging them
+# would present scraper behaviour as editorial behaviour.
+#
+# Politico: Media Cloud returned roughly two Politico articles in total across
+# eighteen months. Google News collection began in August 2026 and immediately
+# produced usable weekly volume, so the series starts there.
+OUTLET_START <- c(
+  "Politico" = "2026-08-17"
+)
+
 # ---- Helpers ----------------------------------------------------------
 
 parse_dates <- function(x) {
   as.Date(x, tryFormats = c("%Y-%m-%d","%Y/%m/%d","%m/%d/%Y"))
 }
 
-# Weekly summary: counts, percentages, net score for one grouping variable
+# Weekly summary: counts, percentages, PCI for one grouping variable.
+#
+# `pci` (Performance Cues Index) = % positive − % negative. This is the
+# outlet-level value; the headline number is built from these in
+# weekly_aggregate() below.
+#
+# `eligible` marks whether an outlet-week has enough headlines to be a
+# meaningful observation. Because PCI is a percentage, a one-article week
+# yields ±100 — of the outlet-weeks below the threshold, several sit at
+# exactly ±100, while no outlet-week above it exceeds ±50. Ineligible weeks
+# are still reported per-outlet (so nothing is hidden) but are kept out of the
+# headline aggregate.
 weekly_summary <- function(df, group_col) {
   df %>%
     group_by(week, .data[[group_col]]) %>%
@@ -143,23 +185,102 @@ weekly_summary <- function(df, group_col) {
       n_neutral      = sum(debate_performance ==  0, na.rm = TRUE),
       pct_positive   = round(mean(debate_performance ==  1, na.rm = TRUE) * 100, 2),
       pct_negative   = round(mean(debate_performance == -1, na.rm = TRUE) * 100, 2),
-      net_score      = round(pct_positive - pct_negative, 2),
+      pci            = round(pct_positive - pct_negative, 2),
       .groups        = "drop"
     ) %>%
+    mutate(eligible = total_segments >= MIN_WEEKLY) %>%
     rename(!!group_col := !!sym(group_col)) %>%
     arrange(.data[[group_col]], week)
 }
 
-# Aggregate across groups (equal-weighted by group, matching methodology text)
+# ---- Headline aggregation -----------------------------------------------
+#
+# Two-way fixed effects, reporting the period effect:
+#
+#     value_ot = alpha_outlet + delta_period + e_ot
+#
+# and the tracker publishes delta. A simple mean across whichever outlets
+# happen to be present conflates movement in press behaviour with movement in
+# the sample — and the sample does move: the count of contributing outlets has
+# swung between 8 and 13 within a single quarter as Media Cloud dropped and
+# regained outlets. Estimating outlet and period effects jointly means outlet
+# entry and exit no longer shifts the series mechanically.
+#
+# Standard errors come from the fit, so weeks resting on fewer outlets carry
+# visibly wider bands rather than looking equally precise.
+#
+# The raw unweighted mean over ALL outlets is retained as `pci_raw` so the
+# change is auditable against the previously-published series.
+fe_period_effects <- function(d, value_col) {
+  weeks <- sort(unique(d$week))
+  out <- data.frame(week = weeks,
+                    fit  = NA_real_,
+                    se   = NA_real_)
+  d <- d[!is.na(d[[value_col]]), ]
+  # Need at least two periods and two groups for the model to be identified.
+  if (nrow(d) < 3 || length(unique(d$week)) < 2 || length(unique(d$grp)) < 2) {
+    return(out)
+  }
+  d$.y   <- d[[value_col]]
+  d$.wk  <- factor(d$week, levels = as.character(weeks))
+  d$.grp <- factor(d$grp)
+
+  fit <- tryCatch(lm(.y ~ .wk + .grp, data = d), error = function(e) NULL)
+  if (is.null(fit)) return(out)
+
+  # Evaluate every period at a single reference group, so differences across
+  # periods are net of composition. The level is then recentred onto the mean
+  # of the underlying data, which makes the series directly comparable to the
+  # raw mean without changing any period-to-period difference.
+  ref <- levels(d$.grp)[1]
+  nd  <- data.frame(.wk = factor(as.character(weeks), levels = levels(d$.wk)),
+                    .grp = factor(ref, levels = levels(d$.grp)))
+  pr <- tryCatch(predict(fit, newdata = nd, se.fit = TRUE),
+                 error = function(e) NULL)
+  if (is.null(pr)) return(out)
+
+  fitted <- as.numeric(pr$fit)
+  shift  <- mean(fitted, na.rm = TRUE) - mean(d$.y, na.rm = TRUE)
+  out$fit <- fitted - shift
+  out$se  <- as.numeric(pr$se.fit)
+  out
+}
+
 weekly_aggregate <- function(weekly_df, group_col) {
-  weekly_df %>%
+  d <- weekly_df
+  d$grp <- d[[group_col]]
+
+  # Alternate series: the previously-published rule, kept for transparency.
+  raw <- d %>%
     group_by(week) %>%
-    summarise(
-      total_segments = sum(total_segments),
-      pct_positive   = round(mean(pct_positive, na.rm = TRUE), 2),
-      pct_negative   = round(mean(pct_negative, na.rm = TRUE), 2),
-      net_score      = round(pct_positive - pct_negative, 2),
-      .groups        = "drop"
+    summarise(pci_raw        = round(mean(pci, na.rm = TRUE), 2),
+              n_groups_total = n_distinct(grp),
+              total_segments = sum(total_segments),
+              .groups = "drop")
+
+  elig <- d[d$eligible, , drop = FALSE]
+  counts <- elig %>%
+    group_by(week) %>%
+    summarise(n_groups_used = n_distinct(grp), .groups = "drop")
+
+  pci_fe <- fe_period_effects(elig, "pci")
+  pos_fe <- fe_period_effects(elig, "pct_positive")
+  neg_fe <- fe_period_effects(elig, "pct_negative")
+
+  raw %>%
+    left_join(counts, by = "week") %>%
+    left_join(pci_fe %>% transmute(week, pci = round(fit, 2),
+                                   pci_se = round(se, 2)), by = "week") %>%
+    left_join(pos_fe %>% transmute(week, pct_positive = round(fit, 2)),
+              by = "week") %>%
+    left_join(neg_fe %>% transmute(week, pct_negative = round(fit, 2)),
+              by = "week") %>%
+    mutate(
+      n_groups_used = ifelse(is.na(n_groups_used), 0L, n_groups_used),
+      # Measurement band: widens automatically when a week rests on fewer
+      # outlets, which is what makes thin periods look thin.
+      pci_lo = round(pci - Z95 * pci_se, 2),
+      pci_hi = round(pci + Z95 * pci_se, 2)
     ) %>%
     arrange(week)
 }
@@ -191,18 +312,43 @@ loess_smooth <- function(weeks, y, span = LOESS_SPAN) {
   )
 }
 
-# Add smoothed columns to a weekly df, optionally grouped by a column
+# Add smoothed columns to a weekly df, optionally grouped by a column.
+#
+# Note there are two distinct uncertainties in play and they answer different
+# questions. `smooth_*_lo/hi` is LOESS fit uncertainty — how well-determined
+# the trend line is. `pci_lo/hi` on the aggregate is measurement uncertainty
+# from the fixed-effects fit — how much confidence a given week deserves given
+# how many outlets it rests on. The charts use the latter for the weekly
+# points, because that is the one a reader is actually asking about.
 add_smooths <- function(df, group_col = NULL) {
   smooth_one <- function(d) {
     d <- d[order(d$week), ]
-    n_sm <- loess_smooth(d$week, d$net_score)
-    p_sm <- loess_smooth(d$week, d$pct_negative)
-    d$smooth_net       <- round(n_sm$fit, 2)
-    d$smooth_net_lo    <- round(n_sm$lo,  2)
-    d$smooth_net_hi    <- round(n_sm$hi,  2)
-    d$smooth_neg       <- round(p_sm$fit, 2)
-    d$smooth_neg_lo    <- round(p_sm$lo,  2)
-    d$smooth_neg_hi    <- round(p_sm$hi,  2)
+
+    # Fit only on weeks that cleared the volume threshold, and do not carry a
+    # fitted value into the weeks that didn't.
+    #
+    # Both halves matter. Feeding thin weeks to the smoother poisons it: one
+    # Reuters week with a single article scored +100 and pulled its trend line
+    # from about -4 up to +10, widening the band to +25 and stretching the
+    # y-axis for every series on the chart. Predicting into masked weeks is
+    # just as bad, because loess extrapolates at the edges and the interval
+    # grows without bound past the last real observation.
+    keep <- if ("eligible" %in% names(d)) as.logical(d$eligible) else rep(TRUE, nrow(d))
+    keep[is.na(keep)] <- FALSE
+
+    pci_in <- ifelse(keep, d$pci,          NA_real_)
+    neg_in <- ifelse(keep, d$pct_negative, NA_real_)
+
+    n_sm <- loess_smooth(d$week, pci_in)
+    p_sm <- loess_smooth(d$week, neg_in)
+
+    blank <- function(v) ifelse(keep, round(v, 2), NA_real_)
+    d$smooth_pci       <- blank(n_sm$fit)
+    d$smooth_pci_lo    <- blank(n_sm$lo)
+    d$smooth_pci_hi    <- blank(n_sm$hi)
+    d$smooth_neg       <- blank(p_sm$fit)
+    d$smooth_neg_lo    <- blank(p_sm$lo)
+    d$smooth_neg_hi    <- blank(p_sm$hi)
     d
   }
   if (is.null(group_col)) {
@@ -246,6 +392,18 @@ news$outlet <- trimws(news$outlet)
 news <- news[news$outlet %in% KEEP_OUTLETS, ]
 news$debate_performance <- as.numeric(news$debate_performance)
 news <- news[!is.na(news$date) & !is.na(news$debate_performance), ]
+
+# Apply per-outlet start dates (see OUTLET_START above).
+for (o in names(OUTLET_START)) {
+  cutoff <- as.Date(OUTLET_START[[o]])
+  drop   <- news$outlet == o & news$date < cutoff
+  if (any(drop)) {
+    message("  ", o, ": dropping ", sum(drop),
+            " articles before ", format(cutoff), " (collection not yet reliable)")
+    news <- news[!drop, ]
+  }
+}
+
 news$week <- floor_date(news$date, "week", week_start = 1)
 
 weekly_news     <- weekly_summary(news, "outlet") %>% add_smooths("outlet")
@@ -267,13 +425,13 @@ message("Wrote weekly_news_agg.csv (", nrow(weekly_news_agg), " weeks)")
 
 trailing_stats <- function(d) {
   if (is.null(d) || nrow(d) == 0) {
-    return(list(net_score = NA_real_, pct_negative = NA_real_,
+    return(list(pci = NA_real_, pct_negative = NA_real_,
                 pct_positive = NA_real_, total = 0L))
   }
   pos <- mean(d$debate_performance ==  1, na.rm = TRUE) * 100
   neg <- mean(d$debate_performance == -1, na.rm = TRUE) * 100
   list(
-    net_score    = round(pos - neg, 2),
+    pci          = round(pos - neg, 2),
     pct_negative = round(neg, 2),
     pct_positive = round(pos, 2),
     total        = as.integer(nrow(d))

@@ -36,6 +36,8 @@ header h1 {
   letter-spacing: -0.01em;
 }
 header .subtitle { color: #666; margin: 0 0 8px; font-size: 15px; }
+header .byline { color: #666; margin: 0 0 8px; font-size: 14px; }
+header .byline a { color: #1a1a1a; }
 header .meta { color: #999; margin: 0; font-size: 12px; font-family: 'IBM Plex Mono', monospace; }
 
 /* ---------- KPI strip ---------- */
@@ -356,13 +358,14 @@ footer a { color: #888; }
 <header>
   <h1>Presidential Coverage Tracker</h1>
   <p class="subtitle">Tone of presidential coverage across major US broadcast networks and digital news outlets, 2025–present.</p>
+  <p class="byline">Developed by <a href="https://kevinmdeluca.com/" target="_blank" rel="noopener">Kevin DeLuca</a> and Zoe Kava. Contact: <a href="mailto:kevin.deluca@yale.edu">kevin.deluca@yale.edu</a></p>
   <p class="meta" id="meta-line">Loading data…</p>
 </header>
 
 <!-- KPI STRIP -->
 <section class="kpi-strip" id="kpi-strip">
   <div class="kpi-card">
-    <div class="kpi-label">Net score, last 7 days</div>
+    <div class="kpi-label">PCI, last 7 days</div>
     <div>
       <div class="kpi-value" id="kpi-net">—</div>
       <div class="kpi-delta" id="kpi-net-delta">&nbsp;</div>
@@ -422,8 +425,8 @@ footer a { color: #888; }
 <!-- CHART GRID -->
 <section class="chart-grid">
   <div class="chart-card">
-    <h3>Net Coverage Score</h3>
-    <p class="chart-note">% positive minus % negative each week. Faint lines are raw weekly values; bold lines are LOESS-smoothed (span = 0.5) with 95% CI.</p>
+    <h3>Performance Cues Index</h3>
+    <p class="chart-note">% positive minus % negative each week, indexed across outlets. Faint lines are weekly values; bold lines are LOESS-smoothed (span = 0.5). The shaded band is a 95% interval that widens in weeks with fewer contributing outlets.</p>
     <div id="chart-net" class="chart-box"></div>
   </div>
   <div class="chart-card">
@@ -437,7 +440,7 @@ footer a { color: #888; }
     <div id="chart-vol" class="chart-box"></div>
   </div>
   <div class="chart-card">
-    <h3>Average Net Score</h3>
+    <h3>Average PCI</h3>
     <p class="chart-note">Mean net score across the selected date range, by <span id="bar-axis-label">network</span>.</p>
     <div id="chart-bar" class="chart-box"></div>
   </div>
@@ -466,8 +469,21 @@ footer a { color: #888; }
   <p>Each broadcast transcript is split into 3-sentence windows. Windows mentioning "Trump" are classified using the <a href="https://huggingface.co/mlburnham/Political_DEBATE_large_v1.0" target="_blank" rel="noopener">Political DEBATE model</a> developed by Michael Burnham. We further train the model on a task that evaluates whether the text conveys a positive, negative, or neutral performance cue about Trump; full training procedure, validation, and reliability tests are documented in our <a href="https://github.com/kevin-deluca-polisci/presidential_headlines" target="_blank" rel="noopener">code repository</a> and accompanying <a href="#" target="_blank" rel="noopener">paper</a>. The same method applies to digital news coverage using the headline as the unit of analysis.</p>
   <p>A segment is classified as positive if the model scores a "yes" on the hypothesis "the author of this text believes that Trump is performing/performed/will perform well" and negative if the model scores a "yes" on the parallel "poorly" hypothesis.</p>
 
+  <h3>The Performance Cues Index</h3>
+  <p>The <strong>Performance Cues Index (PCI)</strong> is the share of coverage carrying a positive performance cue minus the share carrying a negative one. A PCI of −15 means 15% more of the week's coverage implied the president was performing poorly than implied he was performing well. Zero means the two are balanced. It is not a measure of how favourable coverage is in general, and it is not a sentiment score — see below.</p>
+
+  <h3>How outlets are combined</h3>
+  <p>Two problems make a simple average across outlets misleading, and the index corrects for both.</p>
+  <p><strong>Thin outlet-weeks.</strong> Because PCI is a percentage, an outlet publishing a single article in a week scores +100 or −100. Under a simple average that outlet would count as much as one publishing five hundred. Outlet-weeks below <strong>30 headlines</strong> are therefore excluded from the headline number. In the current corpus every outlet-week above this threshold falls within ±50; several below it sit at exactly ±100.</p>
+  <p>The same threshold governs the charts. A week an outlet did not clear it is drawn as a break in that outlet's line rather than being joined across, so the several multi-week gaps left by source outages — Reuters, ABC News and Bloomberg each have one — read as missing data instead of as measurement. An outlet also needs at least eight qualifying weeks before it appears at all; Washington Post and Politico entered the corpus in August 2026 and are collected but not yet plotted.</p>
+  <p><strong>Changing corpus composition.</strong> Which outlets are available varies over time, so a raw average confounds movement in coverage with movement in the sample. Rather than averaging, the index estimates outlet effects and period effects jointly and reports the period effect, so an outlet entering or leaving the corpus no longer moves the series by itself. The shaded band is a 95% interval from that estimate, and it widens in weeks resting on fewer outlets — thin periods are drawn as thin rather than as precise.</p>
+  <p>The headline is unweighted across outlets, so it answers <em>what did the average outlet publish</em> rather than <em>what did the average reader see</em>. Those are different quantities and the second is not currently reported. No adjustment is made for outlet credibility or prominence; the index requires no judgment about which outlets deserve more weight.</p>
+
   <h3>Smoothing</h3>
-  <p>The bold lines in each over-time chart are LOESS smooths (span = 0.5) fit to the weekly aggregates. Shaded bands are 95% confidence intervals from the LOESS fit. Faint lines underneath show the underlying weekly raw values that the smoother is fit to.</p>
+  <p>Bold lines are LOESS smooths (span = 0.5) fit to the weekly index. Faint lines underneath are the weekly values the smoother is fit to.</p>
+
+  <h3>What the index does not capture</h3>
+  <p>It measures cues about performance, not whether coverage is accurate, fair, or deserved — the object of measurement is the coverage, not the conduct being covered. It says nothing about volume: a week of little but harsh coverage and a week of heavy but balanced coverage can share a PCI. It treats each qualifying outlet equally regardless of audience size. And it depends on the corpus actually available, which has gaps; see the outlets listed below and the coverage counts in the volume chart.</p>
 
   <h3>Networks and outlets covered</h3>
   <p><strong>Broadcast and cable:</strong> CBS, CNN, Fox News, ABC, NBC, and MSNBC/MSNow. Data runs from January 2025 to the present. We include national broadcast and cable news programs only — no local affiliates or regional newscasts.</p>
@@ -483,9 +499,10 @@ footer a { color: #888; }
   <p>The weekly aggregated CSVs that power this page are released under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>.</p>
   <button class="download-btn" id="download-btn">Download weekly summary CSV</button>
 
-  <h3>Contact</h3>
-  <p>Kevin DeLuca · <a href="mailto:kevin.deluca@yale.edu">kevin.deluca@yale.edu</a><br>
-  Zoe Kava · <a href="mailto:zoe.kava@yale.edu">zoe.kava@yale.edu</a></p>
+  <h3>About the authors</h3>
+  <p><strong><a href="https://kevinmdeluca.com/" target="_blank" rel="noopener">Kevin DeLuca</a></strong> is an Assistant Professor of Political Science at Yale University, where he studies American politics with a focus on elections and media. His research examines how news coverage shapes political information and accountability, including work on newspaper endorsements and the effects of local news. He is a Resident Fellow at Yale's Institution for Social and Policy Studies and a Faculty Affiliate at the Center for the Study of American Politics. Further work is at <a href="https://kevinmdeluca.com/" target="_blank" rel="noopener">kevinmdeluca.com</a>.</p>
+  <p>This tracker was developed with <strong>Zoe Kava</strong>, who built and validated the classification model the index rests on.</p>
+  <p>Questions about the data or the measure: <a href="mailto:kevin.deluca@yale.edu">kevin.deluca@yale.edu</a></p>
 </section>
 
 <footer>
@@ -547,6 +564,7 @@ const state = {
   mode: "tv",                    // "tv" | "news"
   data: { tv: null, tv_agg: null, news: null, news_agg: null, topics: null, trailing: null },
   selectedGroups: [],            // network/outlet chips selected ([]=All)
+                                 // seeded per-mode from DEFAULT_SELECTION
   selectedTopics: [],            // topic chips selected ([]=All)
   dateRange: null,               // [Date, Date]
   preset: "all",
@@ -609,10 +627,48 @@ async function loadAll() {
 // =====================================================================
 // CURRENT-MODE ACCESSORS
 // =====================================================================
+// An outlet needs a real run of measurable weeks before a line means anything.
+// Washington Post and Politico currently have one qualifying week each — they
+// only entered the corpus in August 2026 — so they'd plot as a single dot
+// while still claiming a slot in the legend. They stay in the underlying data
+// and reappear here automatically once they clear the bar.
+const MIN_ELIGIBLE_WEEKS = 8;
+
+// What's selected when the page first loads, per mode. An empty array means
+// the aggregate ("All Networks" / "All Outlets").
+//
+// Broadcast opens on three networks because the aggregate alone is a nearly
+// flat line after April, which understates what the measure can see: across
+// the full period Fox averages -0.2 and MSNBC -26.9. Digital opens on the
+// aggregate because eleven qualifying outlets is too many lines to read, and
+// picking a subset there would be a harder choice to defend.
+//
+// Note this is the most editorially loaded default on the page — see the
+// note in PLAN-measuring-the-press.md. Set to [] for the aggregate instead.
+const DEFAULT_SELECTION = {
+  tv:   ["CNN", "Fox", "CBS"],
+  news: []
+};
+
+function groupsWithHistory(rows, col) {
+  const counts = new Map();
+  rows.forEach(r => {
+    if (r.eligible === false || r.eligible === "FALSE") return;
+    counts.set(r[col], (counts.get(r[col]) || 0) + 1);
+  });
+  return counts;
+}
+
 const currentPerGroup = () => state.mode === "tv" ? state.data.tv : state.data.news;
 const currentAgg      = () => state.mode === "tv" ? state.data.tv_agg : state.data.news_agg;
 const currentColors   = () => state.mode === "tv" ? NETWORK_COLORS : OUTLET_COLORS;
-const currentOrder    = () => state.mode === "tv" ? TV_ORDER : NEWS_ORDER;
+const currentOrder    = () => {
+  const base = state.mode === "tv" ? TV_ORDER : NEWS_ORDER;
+  const rows = currentPerGroup();
+  if (!rows) return base;
+  const counts = groupsWithHistory(rows, groupCol());
+  return base.filter(n => (counts.get(n) || 0) >= MIN_ELIGIBLE_WEEKS);
+};
 const groupCol        = () => state.mode === "tv" ? "network" : "outlet";
 const groupLabel      = () => state.mode === "tv" ? "Network" : "Outlet";
 const aggName         = () => state.mode === "tv" ? "All Networks" : "All Outlets";
@@ -623,6 +679,23 @@ function filterDate(rows) {
   return rows.filter(r => r.week >= lo && r.week <= hi);
 }
 
+// Blank out weeks an outlet didn't publish enough to measure.
+//
+// PCI is a percentage, so a week with a handful of articles can read ±100 and
+// wrecks the y-axis for every other series on the chart. Rather than dropping
+// those rows — which would silently join the line across the hole — the value
+// is set to null so Plotly breaks the line there. A gap in the data then
+// looks like a gap. Reuters, ABC News and Bloomberg all have real multi-week
+// holes from Media Cloud outages, and drawing straight through them would
+// imply continuous measurement that never happened.
+function maskIneligible(rows) {
+  return rows.map(r => (r.eligible === false || r.eligible === "FALSE")
+    ? { ...r, pci: null, pct_positive: null, pct_negative: null,
+        smooth_pci: null, smooth_pci_lo: null, smooth_pci_hi: null,
+        smooth_neg: null, smooth_neg_lo: null, smooth_neg_hi: null }
+    : r);
+}
+
 function selectedRows() {
   // Returns array of [name, rows]. Empty selectedGroups means "aggregate only".
   const per = currentPerGroup();
@@ -631,7 +704,7 @@ function selectedRows() {
     return [[aggName(), filterDate(agg)]];
   }
   return state.selectedGroups.map(g => {
-    const rows = filterDate(per.filter(r => r[groupCol()] === g));
+    const rows = maskIneligible(filterDate(per.filter(r => r[groupCol()] === g)));
     return [g, rows];
   });
 }
@@ -647,13 +720,18 @@ function computeKpis() {
   const cur = slice.current;
   const pri = slice.prior;
 
-  // Biggest mover: per-group, current vs prior net_score delta
+  // Biggest mover: per-group, current vs prior PCI delta
   let mover = null, moverDelta = 0;
   const curGroups = cur.by_group || {};
   const priGroups = pri.by_group || {};
+  // Only consider outlets we actually plot. Otherwise an outlet held back for
+  // want of history can still win "biggest mover" off a handful of articles,
+  // which is exactly the volatility the volume threshold exists to suppress.
+  const plotted = new Set(currentOrder());
   for (const g of Object.keys(curGroups)) {
-    const c = curGroups[g] && curGroups[g].net_score;
-    const p = priGroups[g] && priGroups[g].net_score;
+    if (!plotted.has(g)) continue;
+    const c = curGroups[g] && curGroups[g].pci;
+    const p = priGroups[g] && priGroups[g].pci;
     if (c == null || p == null) continue;
     const d = c - p;
     if (Math.abs(d) > Math.abs(moverDelta)) { mover = g; moverDelta = d; }
@@ -663,8 +741,8 @@ function computeKpis() {
   const pa = pri.all || {};
 
   return {
-    netNow:   ca.net_score,
-    netDelta: (ca.net_score != null && pa.net_score != null) ? ca.net_score - pa.net_score : 0,
+    netNow:   ca.pci,
+    netDelta: (ca.pci != null && pa.pci != null) ? ca.pci - pa.pci : 0,
     negNow:   ca.pct_negative,
     negDelta: (ca.pct_negative != null && pa.pct_negative != null) ? ca.pct_negative - pa.pct_negative : 0,
     volNow:   ca.total,
@@ -773,14 +851,25 @@ function renderTimeChart(divId, valueCol, smoothCol, loCol, hiCol, yLabel) {
     if (!rows || rows.length === 0) return;
     const color = colors[name] || "#888";
     const xs = rows.map(r => r.week);
-    // CI ribbon
+
+    // Uncertainty ribbon.
+    //
+    // For the aggregate series we prefer the fixed-effects measurement band
+    // (`pci_lo`/`pci_hi`), which widens automatically in weeks resting on
+    // fewer outlets — so a thin week looks thin instead of looking equally
+    // precise. Individual outlet series have no such band, so they fall back
+    // to the LOESS fit interval passed in by the caller.
+    const feBand = valueCol === "pci" &&
+                   rows.length && rows[0].pci_lo != null && rows[0].pci_hi != null;
+    const bandLo = feBand ? "pci_lo" : loCol;
+    const bandHi = feBand ? "pci_hi" : hiCol;
     traces.push({
       x: [...xs, ...xs.slice().reverse()],
-      y: [...rows.map(r => r[hiCol]), ...rows.slice().reverse().map(r => r[loCol])],
+      y: [...rows.map(r => r[bandHi]), ...rows.slice().reverse().map(r => r[bandLo])],
       type: "scatter", mode: "lines",
       fill: "toself", fillcolor: hexToRgba(color, 0.12),
       line: { width: 0 },
-      hoverinfo: "skip", showlegend: false, name: name+" CI"
+      hoverinfo: "skip", showlegend: false, name: name+" band"
     });
     // Raw weekly (faded thin line)
     traces.push({
@@ -799,7 +888,7 @@ function renderTimeChart(divId, valueCol, smoothCol, loCol, hiCol, yLabel) {
     });
   });
   Plotly.react(divId, traces,
-    baseLayout(yLabel, { pct: true, zero: valueCol === "net_score" || smoothCol === "smooth_net" }),
+    baseLayout(yLabel, { pct: true, zero: valueCol === "pci" || smoothCol === "smooth_pci" }),
     PLOTLY_CONFIG);
 }
 
@@ -832,12 +921,18 @@ function renderVolume() {
 function renderBar() {
   const per    = filterDate(currentPerGroup());
   const colors = currentColors();
-  // Average net score per group across the filtered range
+  // Average PCI per group across the filtered range. Restricted to plotted
+  // outlets and to weeks that cleared the volume threshold, so a bar can't be
+  // built out of the same thin weeks the line charts exclude.
+  const plotted = new Set(currentOrder());
   const byGroup = new Map();
   per.forEach(r => {
     const g = r[groupCol()];
+    if (!plotted.has(g)) return;
+    if (r.eligible === false || r.eligible === "FALSE") return;
+    if (r.pci == null || !isFinite(r.pci)) return;
     if (!byGroup.has(g)) byGroup.set(g, []);
-    byGroup.get(g).push(r.net_score);
+    byGroup.get(g).push(r.pci);
   });
   const entries = [...byGroup.entries()]
     .map(([g, arr]) => [g, arr.reduce((a,b)=>a+b,0) / arr.length])
@@ -1038,7 +1133,7 @@ function renderTopicChart() {
 // =====================================================================
 function renderAllCharts() {
   renderKpis();
-  renderTimeChart("chart-net", "net_score",   "smooth_net", "smooth_net_lo", "smooth_net_hi", "Net score");
+  renderTimeChart("chart-net", "pci",          "smooth_pci", "smooth_pci_lo", "smooth_pci_hi", "PCI");
   renderTimeChart("chart-neg", "pct_negative","smooth_neg", "smooth_neg_lo", "smooth_neg_hi", "% negative");
   renderVolume();
   renderBar();
@@ -1056,7 +1151,9 @@ document.getElementById("mode-toggle").addEventListener("click", e => {
   state.mode = btn.dataset.mode;
   document.querySelectorAll("#mode-toggle button").forEach(b =>
     b.classList.toggle("active", b === btn));
-  state.selectedGroups = [];  // reset on mode switch
+  // Reset to that mode's default view, not to a blank slate
+  state.selectedGroups = (DEFAULT_SELECTION[state.mode] || [])
+    .filter(n => currentOrder().includes(n));
   renderChips();
   applyPreset(state.preset);
   renderAllCharts();
@@ -1105,6 +1202,11 @@ function postHeight() {
   try {
     await loadAll();
     applyPreset("all");
+    // Seed the opening view. Filtered against currentOrder() so a default
+    // naming an outlet that hasn't cleared MIN_ELIGIBLE_WEEKS is ignored
+    // rather than selecting a chip that isn't rendered.
+    state.selectedGroups = (DEFAULT_SELECTION[state.mode] || [])
+      .filter(n => currentOrder().includes(n));
     renderChips();
     // Topic chips also disabled with the placeholder; uncomment when re-enabling.
     // renderTopicChips();
