@@ -80,7 +80,7 @@ jobs:
             --start-date "${{ steps.dates.outputs.start }}" \
             --end-date   "${{ steps.dates.outputs.today }}" \
             --output-dir /tmp/mc \
-            --master-csv "data/incoming/${{ steps.dates.outputs.today }}.csv"
+            --master-csv /tmp/collected.csv
 
       - name: GDELT
         continue-on-error: true
@@ -88,15 +88,16 @@ jobs:
           python3 scripts/pipeline/scrape_gdelt.py \
             --start-date "${{ steps.dates.outputs.start }}" \
             --end-date   "${{ steps.dates.outputs.today }}" \
-            --master-csv "data/incoming/${{ steps.dates.outputs.today }}.csv" \
-            --delay 8.0
+            --master-csv /tmp/collected.csv \
+            --delay 8.0 \
+            --budget 10
 
       - name: Publisher RSS
         continue-on-error: true
         run: |
           python3 scripts/pipeline/scrape_rss.py \
             --config scripts/pipeline/rss_feeds.yaml \
-            --master-csv "data/incoming/${{ steps.dates.outputs.today }}.csv" \
+            --master-csv /tmp/collected.csv \
             --delay 2.0
 
       - name: Google News RSS
@@ -104,7 +105,7 @@ jobs:
         run: |
           python3 scripts/pipeline/scrape_gnews.py \
             --config scripts/pipeline/gnews_feeds.yaml \
-            --master-csv "data/incoming/${{ steps.dates.outputs.today }}.csv" \
+            --master-csv /tmp/collected.csv \
             --window "${{ steps.dates.outputs.window }}" \
             --delay 3.0
 
@@ -119,28 +120,26 @@ jobs:
           python3 scripts/pipeline/scrape_nyt_api.py \
             --start-date "${{ steps.dates.outputs.start }}" \
             --end-date   "${{ steps.dates.outputs.today }}" \
-            --master-csv "data/incoming/${{ steps.dates.outputs.today }}.csv" \
+            --master-csv /tmp/collected.csv \
             --delay 2.0
 
-      - name: Summarize what was collected
+      # Drop anything already present in previously-committed increments.
+      # CI can't see the headlines master (gitignored, ~65 MB), but it CAN see
+      # the increments, so this keeps each committed file to genuinely new rows
+      # instead of re-committing the overlapping window every day.
+      - name: Filter against prior increments
         id: summary
         run: |
+          python3 scripts/pipeline/filter_increment.py \
+            --collected /tmp/collected.csv \
+            --incoming-dir data/incoming \
+            --out "data/incoming/${{ steps.dates.outputs.today }}.csv"
           FILE="data/incoming/${{ steps.dates.outputs.today }}.csv"
-          if [ ! -s "$FILE" ]; then
-            echo "No increment file produced — every source failed or found nothing."
+          if [ -s "$FILE" ]; then
+            echo "rows=$(($(wc -l < "$FILE") - 1))" >> "$GITHUB_OUTPUT"
+          else
             echo "rows=0" >> "$GITHUB_OUTPUT"
-            exit 0
           fi
-          python3 - "$FILE" <<'PY'
-          import sys, pandas as pd
-          df = pd.read_csv(sys.argv[1], dtype=str, low_memory=False)
-          print(f"Collected {len(df):,} rows")
-          if "outlet" in df.columns and len(df):
-              print("\nBy outlet:")
-              for outlet, n in df["outlet"].value_counts().items():
-                  print(f"  {outlet:<22} {n:>5}")
-          PY
-          echo "rows=$(($(wc -l < "$FILE") - 1))" >> "$GITHUB_OUTPUT"
 
       - name: Commit increment
         if: steps.summary.outputs.rows != '0'

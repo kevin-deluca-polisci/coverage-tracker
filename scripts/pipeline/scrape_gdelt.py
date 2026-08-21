@@ -112,11 +112,21 @@ def normalize_url(url):
 # --------------------------------------------------------------------------
 # GDELT API call
 # --------------------------------------------------------------------------
-def fetch_chunk(domain, start_dt, end_dt, session, retries=2):
-    """One GDELT API call for a single domain + date range."""
+def fetch_chunk(domain, start_dt, end_dt, session, retries=1):
+    """One GDELT API call for a single domain + date range.
+
+    Returns (articles, ok) where `ok` distinguishes "GDELT answered and there
+    genuinely were no articles" from "we never got a usable answer". Without
+    that distinction a throttled request looks identical to a quiet news week,
+    which is how whole weeks of Fox News and Bloomberg silently went missing.
+
+    Backoff is deliberately short. GDELT under load does not recover within a
+    single request's lifetime, so long waits just burn wall-clock — a previous
+    run spent ~34 minutes waiting to collect 131 rows. Better to give up
+    quickly and let the next scheduled run retry."""
     # NOTE: GDELT 2.0 uses `domain:` for URL host filtering, NOT `source:`.
     # Per-outlet override lives in OUTLET_OPERATOR for outlets that need
-    # the stricter `domainis:` exact-match (Reuters, ABC, USA Today).
+    # the stricter `domainis:` exact-match.
     operator = OUTLET_OPERATOR.get(domain, "domain")
     query = f"trump {operator}:{domain}"
     params = {
@@ -131,57 +141,115 @@ def fetch_chunk(domain, start_dt, end_dt, session, retries=2):
     for attempt in range(retries + 1):
         try:
             r = session.get(GDELT_URL, params=params,
-                            headers={"User-Agent": USER_AGENT}, timeout=120)
+                            headers={"User-Agent": USER_AGENT}, timeout=45)
             if r.status_code == 200:
                 # GDELT sometimes returns HTML on errors; check
                 try:
                     data = r.json()
                 except ValueError:
                     if attempt < retries:
-                        time.sleep(5 * (attempt + 1))
+                        time.sleep(5)
                         continue
-                    return []
-                return data.get("articles", [])
+                    return [], False
+                return data.get("articles", []) or [], True
             elif r.status_code == 429:
-                # rate limited
-                wait = 30 * (attempt + 1)
-                print(f"    [rate-limited, waiting {wait}s]", file=sys.stderr)
+                wait = 15 * (attempt + 1)      # 15s, then 30s — then give up
+                print(f"    [rate-limited, waiting {wait}s]",
+                      file=sys.stderr, flush=True)
                 time.sleep(wait)
             else:
                 print(f"    [HTTP {r.status_code} for {domain} "
-                      f"{start_dt.date()} → {end_dt.date()}]", file=sys.stderr)
+                      f"{start_dt.date()} → {end_dt.date()}]",
+                      file=sys.stderr, flush=True)
                 if attempt < retries:
-                    time.sleep(5 * (attempt + 1))
+                    time.sleep(5)
         except requests.RequestException as e:
-            print(f"    [network error: {e}; retrying]", file=sys.stderr)
+            print(f"    [network error: {type(e).__name__}]",
+                  file=sys.stderr, flush=True)
             if attempt < retries:
-                time.sleep(5 * (attempt + 1))
-    return []
+                time.sleep(5)
+    return [], False
 
 
-def fetch_outlet(domain, outlet_name, start_date, end_date, delay, session):
+def fetch_outlet(domain, outlet_name, start_date, end_date, delay, session,
+                 deadline=None, max_consecutive_failures=2):
     """Fetch all articles for one outlet across the full date range.
-    Chunks weekly; subdivides to daily if a weekly chunk hits the 250 cap."""
+
+    Chunks weekly; subdivides to daily if a weekly chunk hits the 250 cap.
+
+    Two guards keep a throttled GDELT from eating the whole run:
+
+      * circuit breaker — after `max_consecutive_failures` chunks that never
+        returned a usable answer, stop trying this outlet. When GDELT is
+        refusing one domain it will keep refusing it, so continuing just
+        multiplies the wait.
+
+      * deadline — a wall-clock cutoff shared across all outlets. Once passed
+        we stop entirely and report how much of the window we covered.
+
+    Returns (articles, stats) where stats records what actually happened, so
+    the caller can tell "no articles exist" from "we never got an answer"."""
     all_articles = []
+    stats = {"chunks": 0, "ok": 0, "failed": 0,
+             "aborted": False, "reason": None}
+    consecutive_failures = 0
     cur = start_date
+
     while cur <= end_date:
+        if deadline is not None and time.time() > deadline:
+            stats["aborted"] = True
+            stats["reason"] = "time budget exhausted"
+            print(f"    [stopping {outlet_name}: global time budget exhausted]",
+                  flush=True)
+            break
+
         chunk_end = min(cur + timedelta(days=6), end_date)
-        articles = fetch_chunk(domain, cur, chunk_end, session)
+        articles, ok = fetch_chunk(domain, cur, chunk_end, session)
+        stats["chunks"] += 1
+
+        if not ok:
+            stats["failed"] += 1
+            consecutive_failures += 1
+            print(f"    {cur.date()} → {chunk_end.date()}: NO ANSWER "
+                  f"(failure {consecutive_failures}/{max_consecutive_failures})",
+                  flush=True)
+            if consecutive_failures >= max_consecutive_failures:
+                stats["aborted"] = True
+                stats["reason"] = "repeated failures"
+                print(f"    [skipping rest of {outlet_name}: "
+                      f"{consecutive_failures} consecutive failures]", flush=True)
+                break
+            time.sleep(delay)
+            cur = chunk_end + timedelta(days=1)
+            continue
+
+        consecutive_failures = 0
+        stats["ok"] += 1
+
         if len(articles) >= MAX_RECORDS:
-            # Hit the cap — subdivide to daily
-            print(f"    {cur.date()}: {len(articles)} (capped) — subdividing to daily")
+            # Hit the cap — subdivide to daily for full coverage
+            print(f"    {cur.date()}: {len(articles)} (capped) — subdividing to daily",
+                  flush=True)
             articles = []
             sub = cur
             while sub <= chunk_end:
-                day_articles = fetch_chunk(domain, sub, sub, session)
-                articles.extend(day_articles)
+                if deadline is not None and time.time() > deadline:
+                    stats["aborted"] = True
+                    stats["reason"] = "time budget exhausted mid-subdivision"
+                    break
+                day_articles, day_ok = fetch_chunk(domain, sub, sub, session)
+                if day_ok:
+                    articles.extend(day_articles)
                 time.sleep(delay)
                 sub += timedelta(days=1)
+
         all_articles.extend(articles)
-        print(f"    {cur.date()} → {chunk_end.date()}: {len(articles)} articles")
+        print(f"    {cur.date()} → {chunk_end.date()}: {len(articles)} articles",
+              flush=True)
         time.sleep(delay)
         cur = chunk_end + timedelta(days=1)
-    return all_articles
+
+    return all_articles, stats
 
 
 # --------------------------------------------------------------------------
@@ -236,7 +304,12 @@ def main():
                         "documented floor is 5s, but under load 6s still triggers "
                         "intermittent 429s and connection resets. 8s is reliable.")
     p.add_argument("--outlets",    nargs="+", default=None,
-                   help="Specific domain(s) only. Defaults to all 10.")
+                   help="Specific domain(s) only. Defaults to all configured.")
+    p.add_argument("--budget",     type=float, default=12.0,
+                   help="Wall-clock budget in minutes for the whole GDELT pass "
+                        "(default: 12; 0 disables). GDELT is a supplementary "
+                        "source — Media Cloud and Google News cover the same "
+                        "outlets — so it is not worth stalling a run for.")
     args = p.parse_args()
 
     # Default date window: last 14 days
@@ -277,10 +350,26 @@ def main():
 
     session = requests.Session()
     total_new = 0
+    run_start = time.time()
+    deadline = run_start + args.budget * 60 if args.budget > 0 else None
+    if deadline:
+        print(f"Time budget: {args.budget:.0f} min "
+              f"(GDELT under load can otherwise stall a run for an hour)\n",
+              flush=True)
+
+    report = []   # (outlet, fetched, kept, stats)
     for domain, outlet_name in outlets.items():
-        print(f"=== {outlet_name} ({domain}) ===")
-        articles = fetch_outlet(domain, outlet_name, start_date, end_date,
-                                args.delay, session)
+        if deadline is not None and time.time() > deadline:
+            print(f"=== {outlet_name} ({domain}) — SKIPPED, time budget exhausted ===\n",
+                  flush=True)
+            report.append((outlet_name, 0, 0,
+                           {"aborted": True, "reason": "budget exhausted before start",
+                            "chunks": 0, "ok": 0, "failed": 0}))
+            continue
+
+        print(f"=== {outlet_name} ({domain}) ===", flush=True)
+        articles, stats = fetch_outlet(domain, outlet_name, start_date, end_date,
+                                       args.delay, session, deadline=deadline)
         new_rows = to_master_rows(articles, outlet_name, domain)
         before = len(new_rows)
         new_rows = [r for r in new_rows
@@ -288,7 +377,9 @@ def main():
         for r in new_rows:
             existing_urls.add(normalize_url(r["url"]))
         print(f"  {outlet_name}: {len(articles)} fetched, "
-              f"{before} after headline filter, {len(new_rows)} new after dedup")
+              f"{before} after headline filter, {len(new_rows)} new after dedup",
+              flush=True)
+        report.append((outlet_name, len(articles), len(new_rows), stats))
 
         # ---- Save after EACH outlet so an interrupt doesn't lose progress ----
         if new_rows:
@@ -302,16 +393,41 @@ def main():
                            .sort_values(["__sortkey", "outlet"])
                            .drop(columns="__sortkey"))
             existing_df.to_csv(args.master_csv, index=False)
-            print(f"  ✓ Saved (master now {len(existing_df):,} rows)\n")
+            print(f"  ✓ Saved (master now {len(existing_df):,} rows)\n", flush=True)
             total_new += len(new_rows)
         else:
-            print("  (nothing new to save)\n")
+            print("  (nothing new to save)\n", flush=True)
 
-    if total_new == 0:
-        print("No new articles added across any outlet.")
-    else:
-        print(f"\nDone. Added {total_new:,} new GDELT rows total.")
-        print(f"Master CSV now has {len(existing_df):,} total rows.")
+    # ---- Honest summary -------------------------------------------------
+    # The point of this block is that a silent zero used to be indistinguishable
+    # from a genuine zero. Now incomplete coverage is stated explicitly, so a
+    # throttled GDELT looks like a problem rather than like quiet news.
+    elapsed = (time.time() - run_start) / 60
+    print("=" * 62)
+    print(f"GDELT summary — {elapsed:.1f} min elapsed")
+    print(f"{'outlet':<22} {'fetched':>8} {'new':>6}  coverage")
+    print("-" * 62)
+    degraded = []
+    for name, fetched, kept, st in report:
+        chunks, ok, failed = st.get("chunks", 0), st.get("ok", 0), st.get("failed", 0)
+        if st.get("aborted"):
+            cov = f"PARTIAL — {st.get('reason')}"
+            degraded.append(name)
+        elif failed:
+            cov = f"{ok}/{chunks} chunks ({failed} no-answer)"
+            degraded.append(name)
+        else:
+            cov = f"{ok}/{chunks} chunks"
+        print(f"{name:<22} {fetched:>8} {kept:>6}  {cov}")
+    print("-" * 62)
+    print(f"{'TOTAL':<22} {'':>8} {total_new:>6}")
+    if degraded:
+        print(f"\n⚠  Incomplete coverage for: {', '.join(degraded)}")
+        print("   These windows were not fully retrieved. Media Cloud and Google")
+        print("   News cover the same outlets, so this is a gap in supplementary")
+        print("   data rather than a hole in the dataset. The next run retries.")
+    if existing_df is not None:
+        print(f"\nMaster CSV now has {len(existing_df):,} total rows.")
 
 
 if __name__ == "__main__":

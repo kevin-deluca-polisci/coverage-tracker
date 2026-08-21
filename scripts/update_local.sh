@@ -168,10 +168,19 @@ if [[ "$DO_NEWS" -eq 1 ]]; then
   echo ""
   CURRENT_STAGE="2/5 Headlines scrape (MC + GDELT + RSS + GNews + NYT)"
   echo "[2/5] Headlines: scrape (Media Cloud + GDELT + RSS + Google News + NYT)..."
-  # If no explicit dates, default to last 14 days
+  # Default headline window.
+  #
+  # This was 14 days back when local runs were the ONLY collection. Now the
+  # daily Action collects continuously and its increments get merged just
+  # above, so the local scrape is a safety net rather than the primary source.
+  # 7 days still covers a full week of CI being broken before anything is at
+  # risk, while doing half the Media Cloud pagination.
+  #
+  # For a longer catch-up (e.g. returning from a gap), pass explicit dates:
+  #   ./update_local.sh 2026-06-15 2026-08-13
   if [[ -z "$START" || -z "$END" ]]; then
     END="$(date +%Y-%m-%d)"
-    START="$(date -v-14d +%Y-%m-%d 2>/dev/null || date -d "14 days ago" +%Y-%m-%d)"
+    START="$(date -v-7d +%Y-%m-%d 2>/dev/null || date -d "7 days ago" +%Y-%m-%d)"
   fi
 
   # 2·0 — Merge any daily increments collected by the GitHub Action.
@@ -205,7 +214,8 @@ if [[ "$DO_NEWS" -eq 1 ]]; then
   "$PY" "$PIPE/scrape_gdelt.py" \
     --start-date "$START" --end-date "$END" \
     --master-csv "$HEADLINES_MASTER" \
-    --delay 8.0 || \
+    --delay 8.0 \
+    --budget 12 || \
     echo "    [warning: GDELT scrape failed, continuing]"
 
   # 2c — RSS feeds for ABC News, Bloomberg, Politico, Washington Post
