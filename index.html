@@ -10,6 +10,42 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@400;500;600&family=IBM+Plex+Mono&display=swap">
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<!-- Analytics.
+     This page is served from its own repo and embedded in an iframe on
+     kevinmdeluca.com/media-tracker/. A parent page cannot see inside an
+     iframe, so without a tag here the CSV downloads and tab opens that happen
+     in this document are invisible no matter what the parent is running.
+
+     Keep the ID in sync with params.analytics.ga4_id in the website repo's
+     config.toml. Two copies is not ideal, but the alternative is the tracker
+     depending on the Hugo build, and it deliberately does not. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-YJY2BZ0STQ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-YJY2BZ0STQ');
+</script>
+<script>
+// Mirror of kdTrack() in the website repo's analytics partial. Defined
+// unconditionally and defensively: it is called from the same script block
+// that draws the charts, so if an ad blocker removes gtag, this must degrade
+// to a no-op rather than throw and take the dashboard down with it.
+window.kdTrack = function (name, props) {
+  props = props || {};
+  try {
+    if (typeof gtag === "function") { gtag("event", name, props); return; }
+    if (window.goatcounter && window.goatcounter.count) {
+      window.goatcounter.count({
+        path: name + (props.file ? "/" + props.file : ""), title: name, event: true
+      });
+      return;
+    }
+    if (typeof plausible === "function") { plausible(name, { props: props }); }
+  } catch (e) { /* analytics must never break the page */ }
+};
+</script>
 <style>
 /* ---------- Reset / base ---------- */
 * { box-sizing: border-box; }
@@ -1507,9 +1543,12 @@ function showTab(name, { updateHash = true } = {}) {
   postHeight();
 }
 
+// Tab opens are recorded here rather than inside showTab(), which also runs on
+// first paint and on hashchange — counting those would inflate every figure
+// with navigation the visitor never performed.
 document.getElementById("tabs").addEventListener("click", e => {
   const btn = e.target.closest("button[data-tab]");
-  if (btn) showTab(btn.dataset.tab);
+  if (btn) { showTab(btn.dataset.tab); kdTrack("tab_view", { tab: btn.dataset.tab }); }
 });
 
 // In-page links that jump to a tab (e.g. the About pointer under Data access)
@@ -1580,6 +1619,11 @@ document.getElementById("download-btn").addEventListener("click", () => {
   a.download = `coverage_${state.mode}_weekly_${fmtDate(new Date())}.csv`;
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(url);
+  // Analytics platforms auto-detect downloads by watching for clicks on links
+  // ending in a file extension. This download is generated in the browser from
+  // a Blob and never touches a URL, so nothing detects it — it has to be
+  // reported explicitly or it is invisible.
+  kdTrack("csv_download", { file: state.mode });
 });
 
 // =====================================================================
