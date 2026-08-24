@@ -285,6 +285,39 @@ weekly_aggregate <- function(weekly_df, group_col) {
     arrange(week)
 }
 
+# Drop the week that hasn't finished yet.
+#
+# The pipeline is run mid-week by design, so the newest Monday-start week is
+# almost always partial — and it is the week every reader looks at first.
+# Partial weeks are not merely noisy, they are selectively biased: on
+# 2026-08-24 the week held 7% of a normal week's segments, and the only two
+# networks clearing the volume floor were CNN and MSNBC, the two most negative
+# in the corpus. ABC, CBS and Fox were all excluded. The published index read
+# -24.2 against -11.7 the week before, with intervals that did not overlap —
+# an apparently significant collapse in coverage that was entirely an artifact
+# of which networks had accumulated enough segments by Monday lunchtime.
+#
+# The measurement band widens on thin weeks, and here it did (8.7 to 15.0
+# points), but widening cannot rescue an estimate whose *composition* is
+# skewed; it only says the skewed number is imprecise.
+#
+# Nothing is lost by dropping it: recency is already served by trailing_7d,
+# which is a true rolling 7-day window over raw dates rather than a calendar
+# week, and is what the KPI cards read from.
+drop_incomplete_week <- function(d, label) {
+  if (!nrow(d)) return(d)
+  last_day  <- max(d$date, na.rm = TRUE)
+  last_week <- max(d$week, na.rm = TRUE)
+  # A Monday-start week is complete once its Sunday is in the data.
+  if (as.numeric(last_day - last_week) < 6) {
+    n <- sum(d$week == last_week)
+    message("  [", label, "] dropping in-progress week of ", last_week,
+            " (", n, " rows, data only through ", last_day, ")")
+    d <- d[d$week < last_week, , drop = FALSE]
+  }
+  d
+}
+
 # Run LOESS on a single time series and return fit + 95% CI
 loess_smooth <- function(weeks, y, span = LOESS_SPAN) {
   ok <- !is.na(y) & is.finite(y)
@@ -333,7 +366,18 @@ add_smooths <- function(df, group_col = NULL) {
     # y-axis for every series on the chart. Predicting into masked weeks is
     # just as bad, because loess extrapolates at the edges and the interval
     # grows without bound past the last real observation.
-    keep <- if ("eligible" %in% names(d)) as.logical(d$eligible) else rep(TRUE, nrow(d))
+    # Per-outlet frames carry `eligible`; the aggregate frames do not, because
+    # eligibility there is not a property of one outlet but of how many cleared
+    # the floor. The fallback therefore has to be "was an index value actually
+    # computed for this week", NOT rep(TRUE, ...).
+    #
+    # With rep(TRUE, ...) the aggregate smoother predicted into weeks whose pci
+    # was NA, so a partial trailing week with n_groups_used = 0 still received
+    # a bold trend value — and it moved: -14.48 to -11.48 on the week of
+    # 2026-08-24, three points of apparent improvement at the right-hand edge
+    # of the chart, which is exactly where every reader looks, sourced from a
+    # week in which no outlet cleared the threshold at all.
+    keep <- if ("eligible" %in% names(d)) as.logical(d$eligible) else !is.na(d$pci)
     keep[is.na(keep)] <- FALSE
 
     pci_in <- ifelse(keep, d$pci,          NA_real_)
@@ -373,6 +417,7 @@ tv$network <- SHOW_NETWORK_MAP[tv$show_name]
 tv$debate_performance <- as.numeric(tv$debate_performance)
 tv <- tv[!is.na(tv$date) & !is.na(tv$debate_performance), ]
 tv$week <- floor_date(tv$date, "week", week_start = 1)
+tv <- drop_incomplete_week(tv, "tv")
 
 weekly_tv     <- weekly_summary(tv, "network") %>% add_smooths("network")
 weekly_tv_agg <- weekly_aggregate(weekly_tv, "network") %>% add_smooths()
@@ -405,6 +450,7 @@ for (o in names(OUTLET_START)) {
 }
 
 news$week <- floor_date(news$date, "week", week_start = 1)
+news <- drop_incomplete_week(news, "news")
 
 weekly_news     <- weekly_summary(news, "outlet") %>% add_smooths("outlet")
 weekly_news_agg <- weekly_aggregate(weekly_news, "outlet") %>% add_smooths()
