@@ -162,3 +162,15 @@ jobs:
           done
           echo "::error::Could not push increment after 3 attempts"
           exit 1
+
+      # Deliberately AFTER the commit, and with `if: always()` so it still runs
+      # when an earlier step failed. An outlet going dark is worth an email but
+      # must never cost a day of collection — the data is safely pushed by the
+      # time this decides whether to fail the job.
+      #
+      # Every collection step above is continue-on-error, so without this the
+      # run is green whatever happens, and GitHub only emails on failure.
+      - name: Check outlet coverage
+        if: always()
+        run: |
+          python3 scripts/pipeline/check_coverage.py --collected /tmp/collected.csv
