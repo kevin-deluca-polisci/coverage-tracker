@@ -98,10 +98,27 @@ if [[ -z "${VIRTUAL_ENV:-}" ]]; then
   fi
 fi
 
+# Media Cloud is OPTIONAL, and this check used to deny that.
+#
+# It was a hard `exit 1`, which contradicted the rest of the script: stage 2a
+# is `|| echo warning`, NYT's key is an `if set / else SKIPPED`, and the
+# script's own comment calls the live scrape "a safety net rather than the
+# primary source" now that the daily Action collects continuously. So an
+# absent key was aborting the whole run -- including the increment merge, the
+# classifier and the R aggregates, none of which touch Media Cloud -- over a
+# stage that is allowed to fail anyway.
+#
+# Media Cloud is also in steady decline as a source: it dropped NYT (Aug
+# 2025), ABC News (Mar 2026), Bloomberg (Apr 2026) and Reuters (Jun 2026),
+# which is why GDELT, RSS, Google News and the NYT APIs were all added
+# alongside it. Treat it as one contributor among five, not a precondition.
+HAVE_MC=1
 if [[ -z "${MEDIACLOUD_API_KEY:-}" ]]; then
-  echo "ERROR: \$MEDIACLOUD_API_KEY isn't set in this shell."
-  echo "Add 'export MEDIACLOUD_API_KEY=...' to ~/.zshrc (or ~/.bashrc) and re-source."
-  exit 1
+  HAVE_MC=0
+  echo "NOTE: \$MEDIACLOUD_API_KEY isn't set — the Media Cloud stage will be skipped."
+  echo "      Everything else runs: increment merge, GDELT, RSS, Google News,"
+  echo "      classification and the R aggregates. To enable it, add"
+  echo "      'export MEDIACLOUD_API_KEY=...' to ~/.zshrc and open a new shell."
 fi
 
 PY="python3"
@@ -202,12 +219,16 @@ if [[ "$DO_NEWS" -eq 1 ]]; then
   fi
 
   # 2a — Media Cloud (still useful for outlets where it works)
-  echo "  → Media Cloud..."
-  "$PY" "$PIPE/scrape_mediacloud_news.py" \
-    --start-date "$START" --end-date "$END" \
-    --output-dir "$MC_OUT_DIR" \
-    --master-csv "$HEADLINES_MASTER" || \
-    echo "    [warning: Media Cloud scrape failed, continuing with other sources]"
+  if [[ "$HAVE_MC" -eq 1 ]]; then
+    echo "  → Media Cloud..."
+    "$PY" "$PIPE/scrape_mediacloud_news.py" \
+      --start-date "$START" --end-date "$END" \
+      --output-dir "$MC_OUT_DIR" \
+      --master-csv "$HEADLINES_MASTER" || \
+      echo "    [warning: Media Cloud scrape failed, continuing with other sources]"
+  else
+    echo "  → Media Cloud: SKIPPED (MEDIACLOUD_API_KEY not set)"
+  fi
 
   # 2b — GDELT for the 10 non-NYT outlets
   echo "  → GDELT (10 outlets)..."
