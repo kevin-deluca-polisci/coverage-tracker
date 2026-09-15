@@ -1,102 +1,102 @@
 {
   "tv": {
     "current": {
-      "start": "2026-08-17",
-      "end": "2026-08-23",
+      "start": "2026-09-07",
+      "end": "2026-09-13",
       "all": {
-        "pci": -23.49,
-        "pct_negative": 32.59,
-        "pct_positive": 9.1,
-        "total": 3351
+        "pci": -20.6,
+        "pct_negative": 32.92,
+        "pct_positive": 12.32,
+        "total": 2971
       },
       "by_group": {
         "ABC": {
-          "pci": -3.13,
-          "pct_negative": 14.58,
-          "pct_positive": 11.46,
-          "total": 96
+          "pci": -16.98,
+          "pct_negative": 20.75,
+          "pct_positive": 3.77,
+          "total": 106
         },
         "CBS": {
-          "pci": -1.39,
-          "pct_negative": 9.72,
-          "pct_positive": 8.33,
-          "total": 72
+          "pci": -6.03,
+          "pct_negative": 18.1,
+          "pct_positive": 12.07,
+          "total": 116
         },
         "CNN": {
-          "pci": -20.46,
-          "pct_negative": 29.58,
-          "pct_positive": 9.12,
-          "total": 1305
+          "pci": -24.14,
+          "pct_negative": 34.36,
+          "pct_positive": 10.23,
+          "total": 841
         },
         "Fox": {
-          "pci": -2.42,
-          "pct_negative": 17.68,
-          "pct_positive": 15.25,
-          "total": 413
+          "pci": 8.47,
+          "pct_negative": 16.45,
+          "pct_positive": 24.92,
+          "total": 602
         },
         "MSNBC/MSNow": {
-          "pci": -35.55,
-          "pct_negative": 42.71,
-          "pct_positive": 7.15,
-          "total": 1412
+          "pci": -34.12,
+          "pct_negative": 42.8,
+          "pct_positive": 8.67,
+          "total": 1222
         },
         "NBC": {
-          "pci": -7.55,
-          "pct_negative": 16.98,
-          "pct_positive": 9.43,
-          "total": 53
+          "pci": -21.43,
+          "pct_negative": 28.57,
+          "pct_positive": 7.14,
+          "total": 84
         }
       }
     },
     "prior": {
-      "start": "2026-08-10",
-      "end": "2026-08-16",
+      "start": "2026-08-31",
+      "end": "2026-09-06",
       "all": {
-        "pci": -24.32,
-        "pct_negative": 32.73,
-        "pct_positive": 8.41,
-        "total": 2615
+        "pci": -26.49,
+        "pct_negative": 35.46,
+        "pct_positive": 8.97,
+        "total": 3232
       },
       "by_group": {
         "ABC": {
-          "pci": -9.78,
-          "pct_negative": 13.04,
-          "pct_positive": 3.26,
-          "total": 92
+          "pci": 9.64,
+          "pct_negative": 9.64,
+          "pct_positive": 19.28,
+          "total": 83
         },
         "CBS": {
-          "pci": -10.23,
-          "pct_negative": 18.18,
-          "pct_positive": 7.95,
-          "total": 88
+          "pci": -18.89,
+          "pct_negative": 22.22,
+          "pct_positive": 3.33,
+          "total": 90
         },
         "CNN": {
-          "pci": -25.8,
-          "pct_negative": 31.87,
-          "pct_positive": 6.07,
-          "total": 593
+          "pci": -26.37,
+          "pct_negative": 33.24,
+          "pct_positive": 6.87,
+          "total": 728
         },
         "Fox": {
-          "pci": -1.83,
-          "pct_negative": 19.57,
-          "pct_positive": 17.74,
-          "total": 327
+          "pci": -1.88,
+          "pct_negative": 20.7,
+          "pct_positive": 18.82,
+          "total": 372
         },
         "MSNBC/MSNow": {
-          "pci": -30.89,
-          "pct_negative": 38.42,
-          "pct_positive": 7.54,
-          "total": 1473
+          "pci": -34.45,
+          "pct_negative": 41.73,
+          "pct_positive": 7.27,
+          "total": 1843
         },
         "NBC": {
-          "pci": -9.52,
-          "pct_negative": 21.43,
-          "pct_positive": 11.9,
-          "total": 42
+          "pci": -11.21,
+          "pct_negative": 25.86,
+          "pct_positive": 14.66,
+          "total": 116
         }
       }
     },
-    "as_of": "2026-08-23"
+    "as_of": "2026-09-13"
   },
   "news": {
     "current": {
@@ -281,5 +281,5 @@
     },
     "as_of": "2026-09-13"
   },
-  "generated_at": "2026-09-15T04:02:58Z"
+  "generated_at": "2026-09-15T08:12:25Z"
 }
